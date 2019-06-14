@@ -40,11 +40,8 @@ class PSNPlugin(Plugin):
         if not npsso:
             raise InvalidCredentials()
 
-        try:
-            await self._http_client.authenticate(npsso)
-            user_id, user_name = await self._psn_client.async_get_own_user_info()
-        except Exception:
-            raise InvalidCredentials()
+        await self._http_client.authenticate(npsso)
+        user_id, user_name = await self._psn_client.async_get_own_user_info()
 
         return Authentication(user_id=user_id, user_name=user_name)
 
@@ -132,6 +129,7 @@ class PSNPlugin(Plugin):
         except ApplicationError as error:
             for game_id in game_ids:
                 self.game_achievements_import_failure(game_id, error)
+            return
 
         # make a map
         trophy_titles = {trophy_title.communication_id: trophy_title for trophy_title in trophy_titles}

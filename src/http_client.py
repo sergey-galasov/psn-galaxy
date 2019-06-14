@@ -102,13 +102,13 @@ class AuthenticatedHttpClient(HttpClient):
         self._refresh_token = refresh_token
         self._access_token = await self.get_access_token(self._refresh_token)
         if not self._access_token:
-            raise Exception("Invalid access token")
+            raise UnknownBackendResponse("Empty access token")
 
     async def _refresh_access_token(self):
         try:
             self._access_token = await self.get_access_token(self._refresh_token)
             if not self._access_token:
-                raise Exception
+                raise UnknownBackendResponse("Empty access token")
         except (BackendNotAvailable, BackendTimeout, BackendError, NetworkError):
             logging.warning("Failed to refresh token for independent reasons")
             raise

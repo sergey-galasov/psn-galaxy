@@ -23,7 +23,10 @@ GAME_LIST_URL = "https://gamelist.api.playstation.com/v1/users/{user_id}/titles"
     "&ih=240"\
     "&fields=@default"
 
-TROPHY_TITLES_URL = "https://pl-tpy.np.community.playstation.net/trophy/v1/trophyTitles"
+TROPHY_TITLES_URL = "https://pl-tpy.np.community.playstation.net/trophy/v1/trophyTitles" \
+    "?fields=@default" \
+    "&platform=PS4" \
+    "&npLanguage=en"
 
 EARNED_TROPHIES_PAGE = "https://pl-tpy.np.community.playstation.net/trophy/v1/" \
     "trophyTitles/{communication_id}/trophyGroups/{trophy_group_id}/trophies?" \
@@ -168,12 +171,7 @@ class PSNClient:
         result = await self.fetch_paginated_data(
             parser=titles_parser,
             url=TROPHY_TITLES_URL,
-            counter_name="totalResults",
-            params={
-                "fields": "@default",
-                "platform": "PS4",
-                "npLanguage": "en"
-            }
+            counter_name="totalResults"
         )
         return dict(result)
 

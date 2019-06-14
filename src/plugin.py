@@ -11,7 +11,7 @@ from galaxy.api.errors import ApplicationError, InvalidCredentials, UnknownError
 from cache import Cache
 from http_client import AuthenticatedHttpClient
 from psn_client import (
-    CommunicationId, TitleId, TrophyTitles,
+    CommunicationId, TitleId, TrophyTitles, UnixTimestamp,
     PSNClient, MAX_TITLE_IDS_PER_REQUEST
 )
 from typing import Dict, List, Set, Iterable, Tuple, Optional
@@ -141,7 +141,9 @@ class PSNPlugin(Plugin):
         # process pending trophies
         requests = []
         for comm_id in pending_cid_tids.keys():
-            requests.append(self._import_trophies(comm_id, pending_cid_tids[comm_id], pending_tid_cids, tid_trophies))
+            timestamp = trophy_titles[comm_id]
+            pending_tids = pending_cid_tids[comm_id]
+            requests.append(self._import_trophies(comm_id, pending_tids, pending_tid_cids, tid_trophies, timestamp))
 
         await asyncio.gather(*requests)
 
@@ -197,7 +199,8 @@ class PSNPlugin(Plugin):
         comm_id: CommunicationId,
         pending_tids: Set[TitleId],
         pending_tid_cids: _TID_CIDS_DICT,
-        tid_trophies: _TID_TROPHIES_DICT
+        tid_trophies: _TID_TROPHIES_DICT,
+        timestamp: UnixTimestamp
     ):
         def handle_error(error_):
             for tid_ in pending_tids:
@@ -206,7 +209,6 @@ class PSNPlugin(Plugin):
 
         try:
             trophies: List[Achievement] = await self._psn_client.async_get_earned_trophies(comm_id)
-            timestamp = max(trophy.unlock_time for trophy in trophies)
             self._trophies_cache.update(comm_id, trophies, timestamp)
             while pending_tids:
                 tid = pending_tids.pop()

@@ -1,7 +1,6 @@
 import pytest
 import itertools
 from galaxy.api.jsonrpc import InvalidParams
-from plugin import COMM_ID_NOT_AVAILABLE
 from psn_client import GAME_DETAILS_URL
 from tests.async_mock import AsyncMock
 from tests.test_data import GAMES, TITLE_TO_COMMUNICATION_ID, TITLES, UNLOCKED_ACHIEVEMENTS
@@ -115,7 +114,7 @@ async def test_cache_miss_on_dlc_achievements_retrieval(
     mock_get_game_communication_id_map
 ):
     dlc_id = "some_dlc_id"
-    mapping = {dlc_id: COMM_ID_NOT_AVAILABLE}
+    mapping = {dlc_id: []}
     mock_get_game_communication_id_map.return_value = mapping
 
     assert {} == authenticated_plugin._comm_ids_cache
@@ -134,8 +133,8 @@ async def test_cache_miss_on_game_achievements_retrieval(
     mock_client_get_earned_trophies,
     mock_get_game_communication_id_map
 ):
-    comm_id = TITLE_TO_COMMUNICATION_ID[GAME_ID]
-    mapping = {GAME_ID: comm_id}
+    comm_ids = TITLE_TO_COMMUNICATION_ID[GAME_ID]
+    mapping = {GAME_ID: comm_ids}
     mock_get_game_communication_id_map.return_value = mapping
     mock_client_get_earned_trophies.return_value = UNLOCKED_ACHIEVEMENTS
 
@@ -145,7 +144,7 @@ async def test_cache_miss_on_game_achievements_retrieval(
 
     assert mapping == authenticated_plugin._comm_ids_cache
 
-    mock_client_get_earned_trophies.assert_called_once_with(comm_id)
+    mock_client_get_earned_trophies.assert_called_once_with(comm_ids[0])
     mock_get_game_communication_id_map.assert_called_once_with([GAME_ID])
 
 
@@ -156,7 +155,7 @@ async def test_cached_on_dlc_achievements_retrieval(
     mock_get_game_communication_id_map
 ):
     dlc_id = "some_dlc_id"
-    mapping = {dlc_id: COMM_ID_NOT_AVAILABLE}
+    mapping = {dlc_id: []}
 
     authenticated_plugin._comm_ids_cache = mapping
     with pytest.raises(InvalidParams):
@@ -174,8 +173,8 @@ async def test_cached_on_game_achievements_retrieval(
     mock_client_get_earned_trophies,
     mock_get_game_communication_id_map
 ):
-    comm_id = TITLE_TO_COMMUNICATION_ID[GAME_ID]
-    mapping = {GAME_ID: comm_id}
+    comm_ids = TITLE_TO_COMMUNICATION_ID[GAME_ID]
+    mapping = {GAME_ID: comm_ids}
 
     mock_client_get_earned_trophies.return_value = UNLOCKED_ACHIEVEMENTS
     authenticated_plugin._comm_ids_cache = mapping.copy()
@@ -185,31 +184,27 @@ async def test_cached_on_game_achievements_retrieval(
     assert not mock_get_game_communication_id_map.called
     assert mapping == authenticated_plugin._comm_ids_cache
 
-    mock_client_get_earned_trophies.assert_called_once_with(comm_id)
+    mock_client_get_earned_trophies.assert_called_once_with(comm_ids[0])
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("backend_response, mapping", [
-    ({}, {GAME_ID: COMM_ID_NOT_AVAILABLE}),
-    ({"apps": []}, {GAME_ID: COMM_ID_NOT_AVAILABLE}),
-    ({"apps": [{"npTitleId": GAME_ID}]}, {GAME_ID: COMM_ID_NOT_AVAILABLE}),
-    ({"apps": [{"npTitleId": GAME_ID, "trophyTitles": []}]}, {GAME_ID: COMM_ID_NOT_AVAILABLE}),
-    ({"apps": [{"npTitleId": GAME_ID, "trophyTitles": [{}]}]}, {GAME_ID: COMM_ID_NOT_AVAILABLE}),
-    (
-        {"apps": [{"npTitleId": GAME_ID, "trophyTitles": [{"npCommunicationId": COMM_ID_NOT_AVAILABLE}]}]},
-        {GAME_ID: COMM_ID_NOT_AVAILABLE}
-    ),
+    ({}, {GAME_ID: []}),
+    ({"apps": []}, {GAME_ID: []}),
+    ({"apps": [{"npTitleId": GAME_ID}]}, {GAME_ID: []}),
+    ({"apps": [{"npTitleId": GAME_ID, "trophyTitles": []}]}, {GAME_ID: []}),
+    ({"apps": [{"npTitleId": GAME_ID, "trophyTitles": [{}]}]}, {GAME_ID: []}),
     (
         {"apps": [{"trophyTitles": [{"npCommunicationId": "NPWR12345_00"}]}]},
-        {GAME_ID: COMM_ID_NOT_AVAILABLE}
+        {GAME_ID: []}
     ),
     (
         {"apps": [{"npTitleId": None, "trophyTitles": [{"npCommunicationId": "NPWR23456_00"}]}]},
-        {GAME_ID: COMM_ID_NOT_AVAILABLE}
+        {GAME_ID: []}
     ),
     (
         {"apps": [{"npTitleId": GAME_ID, "trophyTitles": [{"npCommunicationId": "NPWR34567_00"}]}]},
-        {GAME_ID: "NPWR34567_00"}
+        {GAME_ID: ["NPWR34567_00"]}
     ),
     (
         {"apps": [
@@ -218,10 +213,17 @@ async def test_cached_on_game_achievements_retrieval(
             {"npTitleId": "CUSA02000_00", "trophyTitles": [{"npCommunicationId": "NPWR10584_00"}]}
         ]},
         {
-            "CUSA07917_00": "NPWR12784_00",
-            "CUSA07719_00": COMM_ID_NOT_AVAILABLE,
-            "CUSA02000_00": "NPWR10584_00"
+            "CUSA07917_00": ["NPWR12784_00"],
+            "CUSA07719_00": [],
+            "CUSA02000_00": ["NPWR10584_00"]
         }
+    ),
+    (
+            {"apps": [{"npTitleId": GAME_ID, "trophyTitles": [
+                {"npCommunicationId": "NPWR34567_00"},
+                {"npCommunicationId": "NPWR10584_00"}
+            ]}]},
+            {GAME_ID: ["NPWR34567_00", "NPWR10584_00"]}
     )
 ])
 async def test_get_game_communication_id(

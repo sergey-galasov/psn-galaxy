@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import sys
+from collections import defaultdict
 
 from galaxy.api.plugin import Plugin, create_and_run_plugin
 from galaxy.api.types import Authentication, NextStep, Achievement
@@ -10,10 +11,10 @@ from galaxy.api.errors import ApplicationError, InvalidCredentials, UnknownError
 from cache import Cache
 from http_client import AuthenticatedHttpClient
 from psn_client import (
-    CommunicationId, TitleId,
-    PSNClient, MAX_TITLE_IDS_PER_REQUEST, COMM_ID_NOT_AVAILABLE
+    CommunicationId, TitleId, TrophyTitles,
+    PSNClient, MAX_TITLE_IDS_PER_REQUEST
 )
-from typing import Dict, List, Set, Iterable
+from typing import Dict, List, Set, Iterable, Tuple, Optional
 from version import __version__
 
 from http_client import OAUTH_LOGIN_URL, OAUTH_LOGIN_REDIRECT_URL
@@ -26,13 +27,16 @@ AUTH_PARAMS = {
     "end_uri_regex": "^" + OAUTH_LOGIN_REDIRECT_URL + ".*"
 }
 
+_CID_TIDS_DICT = Dict[TitleId, Set[CommunicationId]]
+_TID_CIDS_DICT = Dict[CommunicationId, Set[TitleId]]
+_TID_TROPHIES_DICT = Dict[TitleId, List[Achievement]]
 
 class PSNPlugin(Plugin):
     def __init__(self, reader, writer, token):
         super().__init__(Platform.Psn, __version__, reader, writer, token)
         self._http_client = AuthenticatedHttpClient(self.lost_authentication)
         self._psn_client = PSNClient(self._http_client)
-        self._comm_ids_cache: Dict[TitleId, CommunicationId] = {}
+        self._comm_ids_cache: Dict[TitleId, List[CommunicationId]] = {}
         self._trophies_cache = Cache()
         logging.getLogger("urllib3").setLevel(logging.FATAL)
 
@@ -64,14 +68,16 @@ class PSNPlugin(Plugin):
         return auth_info
 
     @staticmethod
-    def _is_game(comm_id: CommunicationId) -> bool:
-        return comm_id != COMM_ID_NOT_AVAILABLE
+    def _is_game(comm_id: List[CommunicationId]) -> bool:
+        """Assumption: all games has communication id - otherwise it's DLC"""
+        return comm_id != []
 
-    async def update_communication_id_cache(self, title_ids: List[TitleId]) -> Dict[TitleId, CommunicationId]:
+    async def update_communication_id_cache(self, title_ids: List[TitleId]) \
+            -> Dict[TitleId, List[CommunicationId]]:
         async def updater(title_id_slice: Iterable[TitleId]):
             delta.update(await self._psn_client.async_get_game_communication_id_map(title_id_slice))
 
-        delta: Dict[TitleId, CommunicationId] = dict()
+        delta: Dict[TitleId, List[CommunicationId]] = dict()
         await asyncio.gather(*[
             updater(title_ids[it:it + MAX_TITLE_IDS_PER_REQUEST])
             for it in range(0, len(title_ids), MAX_TITLE_IDS_PER_REQUEST)
@@ -80,13 +86,13 @@ class PSNPlugin(Plugin):
         self._comm_ids_cache.update(delta)
         return delta
 
-    async def get_game_communication_ids(self, title_ids: List[TitleId]) -> Dict[TitleId, CommunicationId]:
-        result: Dict[TitleId, CommunicationId] = dict()
+    async def get_game_communication_ids(self, title_ids: List[TitleId]) -> Dict[TitleId, List[CommunicationId]]:
+        result: Dict[TitleId, List[CommunicationId]] = dict()
         misses: Set[TitleId] = set()
         for title_id in title_ids:
-            comm_id: CommunicationId = self._comm_ids_cache.get(title_id)
-            if comm_id:
-                result[title_id] = comm_id
+            comm_ids: Optional[List[CommunicationId]] = self._comm_ids_cache.get(title_id)
+            if comm_ids is not None:
+                result[title_id] = comm_ids
             else:
                 misses.add(title_id)
 
@@ -107,11 +113,10 @@ class PSNPlugin(Plugin):
     # TODO: backward compatibility. remove when GLX handles batch imports
     async def get_unlocked_achievements(self, game_id: TitleId):
         async def get_game_comm_id():
-            comm_id: CommunicationId = (await self.get_game_communication_ids([game_id]))[game_id]
-            if not self._is_game(comm_id):
+            comm_ids: List[CommunicationId] = (await self.get_game_communication_ids([game_id]))[game_id]
+            if not self._is_game(comm_ids):
                 raise InvalidParams()
-
-            return comm_id
+            return comm_ids[0]
 
         return await self._psn_client.async_get_earned_trophies(
             await get_game_comm_id()
@@ -124,42 +129,100 @@ class PSNPlugin(Plugin):
 
     async def import_games_achievements(self, game_ids: Iterable[TitleId]):
         try:
-            comm_ids = await self.get_game_communication_ids(game_ids)
+            games_cids = await self.get_game_communication_ids(game_ids)
             trophy_titles = await self._psn_client.get_trophy_titles()
         except ApplicationError as error:
-            for game_id in game_ids:
-                self.game_achievements_import_failure(game_id, error)
+            for title_id in game_ids:
+                self.game_achievements_import_failure(title_id, error)
             return
 
-        # make a map
-        trophy_titles = {trophy_title.communication_id: trophy_title for trophy_title in trophy_titles}
+        pending_cid_tids, pending_tid_cids, tid_trophies = self._process_trophies_cache(games_cids, trophy_titles)
+
+        # process pending trophies
         requests = []
-        for game_id, comm_id in comm_ids.items():
-            if not self._is_game(comm_id):
-                self.game_achievements_import_failure(game_id, InvalidParams())
-                continue
-            trophy_title = trophy_titles.get(comm_id)
-            if trophy_title is None:
-                self.game_achievements_import_success(game_id, [])
-                continue
-            trophies = self._trophies_cache.get(comm_id, trophy_title.last_update_time)
-            if trophies is not None:
-                self.game_achievements_import_success(game_id, trophies)
-                continue
-            requests.append(self._import_game_achievements(game_id, comm_id))
+        for comm_id in pending_cid_tids.keys():
+            requests.append(self._import_trophies(comm_id, pending_cid_tids[comm_id], pending_tid_cids, tid_trophies))
+
         await asyncio.gather(*requests)
 
-    async def _import_game_achievements(self, title_id: TitleId, comm_id: CommunicationId):
+        # log if some games has not been processed (it shouldn't happen)
+        for tid in pending_tid_cids.keys():
+            logging.error("Not fetched all trophies for game %s", tid)
+            self.game_achievements_import_failure(tid, UnknownError())
+
+    def _process_trophies_cache(
+        self,
+        games_cids: Dict[TitleId, Iterable[CommunicationId]],
+        trophy_titles: TrophyTitles
+    ) -> Tuple[_CID_TIDS_DICT, _TID_CIDS_DICT, _TID_TROPHIES_DICT]:
+        pending_cid_tids: _CID_TIDS_DICT = defaultdict(set)
+        pending_tid_cids: _TID_CIDS_DICT = defaultdict(set)
+        tid_trophies: _TID_TROPHIES_DICT = {}
+
+        for title_id, comm_ids in games_cids.items():
+            if not self._is_game(comm_ids):
+                self.game_achievements_import_failure(title_id, InvalidParams())
+                continue
+
+            game_trophies, pending_comm_ids = self._get_game_trophies_from_cache(comm_ids, trophy_titles)
+
+            if pending_comm_ids:
+                for comm_id in pending_comm_ids:
+                    pending_cid_tids[comm_id].add(title_id)
+                pending_tid_cids[title_id].update(pending_comm_ids)
+                tid_trophies[title_id] = game_trophies
+            else:
+                # all trophies fetched from cache
+                self.game_achievements_import_success(title_id, game_trophies)
+
+        return pending_cid_tids, pending_tid_cids, tid_trophies
+
+    def _get_game_trophies_from_cache(self, game_comm_ids, trophy_titles):
+        """Process all communication ids for the game"""
+        game_trophies: List[Achievement] = []
+        pending_comm_ids: Set[CommunicationId] = set()
+        for comm_id in set(game_comm_ids):
+            last_update_time = trophy_titles.get(comm_id)
+            if last_update_time is None:
+                continue
+            trophies = self._trophies_cache.get(comm_id, last_update_time)
+            if trophies is None:
+                pending_comm_ids.add(comm_id)
+            else:
+                game_trophies.extend(trophies)
+        return game_trophies, pending_comm_ids
+
+    async def _import_trophies(
+        self,
+        comm_id: CommunicationId,
+        pending_tids: Set[TitleId],
+        pending_tid_cids: _TID_CIDS_DICT,
+        tid_trophies: _TID_TROPHIES_DICT
+    ):
+        def handle_error(error_):
+            for tid_ in pending_tids:
+                del pending_tid_cids[tid_]
+                self.game_achievements_import_failure(tid_, error_)
+
         try:
             trophies: List[Achievement] = await self._psn_client.async_get_earned_trophies(comm_id)
             timestamp = max(trophy.unlock_time for trophy in trophies)
             self._trophies_cache.update(comm_id, trophies, timestamp)
-            self.game_achievements_import_success(title_id, trophies)
+            while pending_tids:
+                tid = pending_tids.pop()
+                game_trophies = tid_trophies[tid]
+                game_trophies.extend(trophies)
+                pending_comm_ids = pending_tid_cids[tid]
+                pending_comm_ids.remove(comm_id)
+                if not pending_comm_ids:
+                    # the game has already all comm ids processed
+                    self.game_achievements_import_success(tid, game_trophies)
+                    del pending_tid_cids[tid]
         except ApplicationError as error:
-            self.game_achievements_import_failure(title_id, error)
+            handle_error(error)
         except Exception:
             logging.exception("Unhandled exception. Please report it to the plugin developers")
-            self.game_achievements_import_failure(title_id, UnknownError())
+            handle_error(UnknownError())
 
     async def get_friends(self):
         return await self._psn_client.async_get_friends()

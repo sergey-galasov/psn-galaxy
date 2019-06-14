@@ -1,10 +1,11 @@
 import asyncio
 import pytest
 from galaxy.api.errors import AuthenticationRequired, UnknownBackendResponse
-from psn_client import EARNED_TROPHIES_PAGE, TrophyTitle
+from psn_client import EARNED_TROPHIES_PAGE
 from tests.async_mock import AsyncMock
 from tests.test_data import BACKEND_TROPHIES, COMMUNICATION_ID, GAMES, TITLE_TO_COMMUNICATION_ID, UNLOCKED_ACHIEVEMENTS
 from unittest.mock import call
+from itertools import chain
 
 GET_ALL_TROPHIES_URL = EARNED_TROPHIES_PAGE.format(communication_id=COMMUNICATION_ID, trophy_group_id="all")
 GAME_ID = "CUSA07917_00"
@@ -24,7 +25,7 @@ def _mock_get_game_communication_ids(mocker, mapping):
 
 @pytest.fixture
 async def mock_get_game_communication_id(mocker):
-    mocked = _mock_get_game_communication_ids(mocker, {GAME_ID: COMMUNICATION_ID})
+    mocked = _mock_get_game_communication_ids(mocker, {GAME_ID: [COMMUNICATION_ID]})
     yield mocked
     mocked.assert_called_once_with([GAME_ID])
 
@@ -96,8 +97,8 @@ async def test_import_games_achievements(
     mock_async_get_earned_trophies,
     mock_import_achievements_success
 ):
-    mock_async_get_game_communication_id_map.return_value = {GAME_ID: COMMUNICATION_ID}
-    mock_get_trophy_titles.return_value = [TrophyTitle(COMMUNICATION_ID, 1388308713)]
+    mock_async_get_game_communication_id_map.return_value = {GAME_ID: [COMMUNICATION_ID]}
+    mock_get_trophy_titles.return_value = {COMMUNICATION_ID: 1388308713}
     mock_async_get_earned_trophies.return_value = UNLOCKED_ACHIEVEMENTS
 
     await authenticated_plugin.start_achievements_import([GAME_ID])
@@ -116,15 +117,71 @@ async def test_import_multiple_games_achievements(
     mock_import_achievements_success
 ):
     mock_async_get_game_communication_id_map.return_value = TITLE_TO_COMMUNICATION_ID
-    mock_get_trophy_titles.return_value = [
-        TrophyTitle(comm_id, 1559744411) for comm_id in TITLE_TO_COMMUNICATION_ID.values()
-    ]
+    mock_get_trophy_titles.return_value = {
+        comm_id: 1559744411 for comm_id in chain.from_iterable(TITLE_TO_COMMUNICATION_ID.values())
+    }
     mock_async_get_earned_trophies.return_value = []
     await authenticated_plugin.start_achievements_import(GAME_IDS)
     await _wait_for_comm_ids_and_import_start()
 
     mock_async_get_earned_trophies.assert_has_calls(
-        [call(comm_id) for comm_id in TITLE_TO_COMMUNICATION_ID.values() if comm_id != "-N/A-"],
+        [call(comm_id) for comm_id in chain.from_iterable(TITLE_TO_COMMUNICATION_ID.values())],
+        any_order=True
+    )
+
+@pytest.mark.asyncio
+async def test_import_game_achievements_multiple_comm_ids(
+    authenticated_plugin,
+    mock_async_get_game_communication_id_map,
+    mock_get_trophy_titles,
+    mock_async_get_earned_trophies,
+    mock_import_achievements_success
+):
+    mock_async_get_game_communication_id_map.return_value = {
+        GAME_ID: ["NPWR12784_00", "NPWR10584_00"]
+    }
+    mock_get_trophy_titles.return_value = {
+        "NPWR12784_00": 1559744411,
+        "NPWR10584_00": 1559744411
+    }
+    mock_async_get_earned_trophies.side_effect = [
+        [UNLOCKED_ACHIEVEMENTS[0]],
+        [UNLOCKED_ACHIEVEMENTS[1]]
+    ]
+    await authenticated_plugin.start_achievements_import([GAME_ID])
+    await _wait_for_comm_ids_and_import_start()
+
+    mock_async_get_earned_trophies.assert_has_calls(
+        [call("NPWR12784_00"), call("NPWR10584_00")],
+        any_order=True
+    )
+    mock_import_achievements_success.assert_called_once_with(GAME_ID, UNLOCKED_ACHIEVEMENTS[0:2])
+
+@pytest.mark.asyncio
+async def test_import_game_achievements_same_comm_id(
+    authenticated_plugin,
+    mock_async_get_game_communication_id_map,
+    mock_get_trophy_titles,
+    mock_async_get_earned_trophies,
+    mock_import_achievements_success
+):
+    mock_async_get_game_communication_id_map.return_value = {
+        "CUSA07917_00": ["NPWR12784_00"],
+        "CUSA02000_00": ["NPWR12784_00"]
+    }
+    mock_get_trophy_titles.return_value = {
+        "NPWR12784_00": 1559744411
+    }
+    mock_async_get_earned_trophies.return_value = UNLOCKED_ACHIEVEMENTS
+    await authenticated_plugin.start_achievements_import(["CUSA07917_00", "CUSA02000_00"])
+    await _wait_for_comm_ids_and_import_start()
+
+    mock_async_get_earned_trophies.assert_called_once_with("NPWR12784_00")
+    mock_import_achievements_success.assert_has_calls(
+        [
+            call("CUSA07917_00", UNLOCKED_ACHIEVEMENTS),
+            call("CUSA02000_00", UNLOCKED_ACHIEVEMENTS)
+        ],
         any_order=True
     )
 
@@ -136,8 +193,8 @@ async def test_import_achievements_valid_cache(
     mock_async_get_earned_trophies,
     mock_import_achievements_success
 ):
-    mock_async_get_game_communication_id_map.return_value = {GAME_ID: COMMUNICATION_ID}
-    mock_get_trophy_titles.return_value = [TrophyTitle(COMMUNICATION_ID, 1388308713)]
+    mock_async_get_game_communication_id_map.return_value = {GAME_ID: [COMMUNICATION_ID]}
+    mock_get_trophy_titles.return_value = {COMMUNICATION_ID: 1388308713}
     mock_async_get_earned_trophies.return_value = UNLOCKED_ACHIEVEMENTS
 
     await authenticated_plugin.start_achievements_import([GAME_ID])
@@ -162,8 +219,8 @@ async def test_import_achievements_invalid_cache(
     mock_async_get_earned_trophies,
     mock_import_achievements_success
 ):
-    mock_async_get_game_communication_id_map.return_value = {GAME_ID: COMMUNICATION_ID}
-    mock_get_trophy_titles.return_value = [TrophyTitle(COMMUNICATION_ID, 1388308713)]
+    mock_async_get_game_communication_id_map.return_value = {GAME_ID: [COMMUNICATION_ID]}
+    mock_get_trophy_titles.return_value = {COMMUNICATION_ID: 1388308713}
     mock_async_get_earned_trophies.return_value = UNLOCKED_ACHIEVEMENTS
 
     await authenticated_plugin.start_achievements_import([GAME_ID])
@@ -173,7 +230,7 @@ async def test_import_achievements_invalid_cache(
     assert mock_async_get_earned_trophies.call_count == 1
     assert mock_import_achievements_success.call_count == 1
 
-    mock_get_trophy_titles.return_value[0].last_update_time += 100
+    mock_get_trophy_titles.return_value[COMMUNICATION_ID] += 100
     await authenticated_plugin.start_achievements_import([GAME_ID])
     await _wait_for_comm_ids_and_import_start()
 
@@ -189,8 +246,8 @@ async def test_import_games_achievements_error(
     mock_async_get_earned_trophies,
     mock_import_achievements_failure
 ):
-    mock_async_get_game_communication_id_map.return_value = {GAME_ID: COMMUNICATION_ID}
-    mock_get_trophy_titles.return_value = [TrophyTitle(COMMUNICATION_ID, 1559744411)]
+    mock_async_get_game_communication_id_map.return_value = {GAME_ID: [COMMUNICATION_ID]}
+    mock_get_trophy_titles.return_value = {COMMUNICATION_ID: 1559744411}
     mock_async_get_earned_trophies.side_effect = UnknownBackendResponse()
 
     await authenticated_plugin.start_achievements_import([GAME_ID])
@@ -252,16 +309,16 @@ async def test_async_get_earned_trophies_bad_format(
     http_get.assert_called_once_with(GET_ALL_TROPHIES_URL)
 
 
-TROPHY_TITLES = [
-    TrophyTitle("NPWR12784_00", 1528464143),
-    TrophyTitle("NPWR11243_00", 1522265391),
-    TrophyTitle("NPWR07882_00", 1522236441),
-    TrophyTitle("NPWR07722_00", 1522220630),
-    TrophyTitle("NPWR10793_00", 1522203789),
-    TrophyTitle("NPWR10584_00", 1522162975),
-    TrophyTitle("NPWR07228_00", 1522151604),
-    TrophyTitle("NPWR11556_00", 1521718507)
-]
+TROPHY_TITLES = {
+    "NPWR12784_00": 1528464143,
+    "NPWR11243_00": 1522265391,
+    "NPWR07882_00": 1522236441,
+    "NPWR07722_00": 1522220630,
+    "NPWR10793_00": 1522203789,
+    "NPWR10584_00": 1522162975,
+    "NPWR07228_00": 1522151604,
+    "NPWR11556_00": 1521718507
+}
 
 BACKEND_TROPHY_TITLES = {
     "totalResults": len(TROPHY_TITLES),
@@ -287,8 +344,8 @@ BACKEND_TROPHY_TITLES = {
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("backend_response, trophy_titles", [
-    ({}, []),
-    ({"trophyTitles": []}, []),
+    ({}, {}),
+    ({"trophyTitles": []}, {}),
     (BACKEND_TROPHY_TITLES, TROPHY_TITLES)
 ])
 async def test_get_trophy_titles(

@@ -1,6 +1,5 @@
 from galaxy.api.consts import LicenseType
 from galaxy.api.types import Achievement, FriendInfo, Game, LicenseInfo
-from plugin import COMM_ID_NOT_AVAILABLE
 
 COMMUNICATION_ID = "NPWR12784_00"
 
@@ -63,17 +62,17 @@ BACKEND_GAME_TITLES_WITH_DLC = {
 }
 
 TITLE_TO_COMMUNICATION_ID = {
-    "CUSA07917_00": "NPWR12784_00",
-    "CUSA02000_00": "NPWR10584_00",
-    "CUSA05603_00": "NPWR11243_00",
-    "CUSA01427_00": "NPWR07882_00",
-    "CUSA01858_00": "NPWR07722_00",
-    "CUSA04607_00": "NPWR10793_00",
-    "CUSA00860_00": "NPWR07228_00",
-    "CUSA07320_00": "NPWR11556_00",
-    "CUSA07719_00": COMM_ID_NOT_AVAILABLE,
-    "CUSA07140_00": "NPWR12456_00",
-    "CUSA08487_00": "NPWR13354_00"
+    "CUSA07917_00": ["NPWR12784_00"],
+    "CUSA02000_00": ["NPWR10584_00"],
+    "CUSA05603_00": ["NPWR11243_00"],
+    "CUSA01427_00": ["NPWR07882_00"],
+    "CUSA01858_00": ["NPWR07722_00"],
+    "CUSA04607_00": ["NPWR10793_00"],
+    "CUSA00860_00": ["NPWR07228_00"],
+    "CUSA07320_00": ["NPWR11556_00"],
+    "CUSA07719_00": [],
+    "CUSA07140_00": ["NPWR12456_00"],
+    "CUSA08487_00": ["NPWR13354_00"]
 }
 
 BACKEND_TROPHIES = {
@@ -118,10 +117,10 @@ BACKEND_TROPHIES = {
 }
 
 UNLOCKED_ACHIEVEMENTS = [
-    Achievement(achievement_id="1", achievement_name="achievement 1", unlock_time=538304493),
-    Achievement(achievement_id="2", achievement_name="achievement 2", unlock_time=1318782798),
-    Achievement(achievement_id="3", achievement_name="achievement 3", unlock_time=1388308713),
-    Achievement(achievement_id="5", achievement_name="achievement 5", unlock_time=539691282),
+    Achievement(achievement_id="NPWR12784_00_1", achievement_name="achievement 1", unlock_time=538304493),
+    Achievement(achievement_id="NPWR12784_00_2", achievement_name="achievement 2", unlock_time=1318782798),
+    Achievement(achievement_id="NPWR12784_00_3", achievement_name="achievement 3", unlock_time=1388308713),
+    Achievement(achievement_id="NPWR12784_00_5", achievement_name="achievement 5", unlock_time=539691282),
 ]
 
 BACKEND_USER_PROFILES = {

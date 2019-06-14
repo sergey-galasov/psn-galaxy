@@ -1,9 +1,8 @@
 import asyncio
 import logging
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from functools import partial
-from typing import Dict, List, NewType
+from typing import Dict, List, NewType, Tuple
 
 from galaxy.api.errors import UnknownBackendResponse
 from galaxy.api.types import Achievement, Game, LicenseInfo, FriendInfo
@@ -40,23 +39,16 @@ FRIENDS_URL = "https://us-prof.np.community.playstation.net/userProfile/v1/users
 
 DEFAULT_LIMIT = 100
 MAX_TITLE_IDS_PER_REQUEST = 5
-COMM_ID_NOT_AVAILABLE = "-N/A-"
 
 CommunicationId = NewType("CommunicationId", str)
 TitleId = NewType("TitleId", str)
 UnixTimestamp = NewType("UnixTimestamp", int)
-
+TrophyTitles = Dict[CommunicationId, UnixTimestamp]
 
 def parse_timestamp(earned_date) -> UnixTimestamp:
     dt = datetime.strptime(earned_date, "%Y-%m-%dT%H:%M:%SZ")
     dt = datetime.combine(dt.date(), dt.time(), timezone.utc)
     return UnixTimestamp(dt.timestamp())
-
-
-@dataclass
-class TrophyTitle:
-    communication_id: CommunicationId
-    last_update_time: UnixTimestamp
 
 
 class PSNClient:
@@ -135,16 +127,20 @@ class PSNClient:
             "totalResults"
         )
 
-    async def async_get_game_communication_id_map(self, game_ids: List[TitleId]) -> Dict[TitleId, CommunicationId]:
+    async def async_get_game_communication_id_map(self, game_ids: List[TitleId]) \
+            -> Dict[TitleId, List[CommunicationId]]:
         def communication_ids_parser(response):
-            def get_comm_id(trophy_titles):
-                if not trophy_titles:
-                    return COMM_ID_NOT_AVAILABLE
-                return trophy_titles[0].get("npCommunicationId", COMM_ID_NOT_AVAILABLE)
+            def get_comm_ids(trophy_titles):
+                result = []
+                for trophy_title in trophy_titles:
+                    comm_id = trophy_title.get("npCommunicationId")
+                    if comm_id is not None:
+                        result.append(comm_id)
+                return result
 
             try:
                 return {
-                    app["npTitleId"]: get_comm_id(app["trophyTitles"])
+                    app["npTitleId"]: get_comm_ids(app["trophyTitles"])
                     for app in response["apps"]
                 } if response else {}
             except (KeyError, IndexError):
@@ -156,23 +152,20 @@ class PSNClient:
         )
 
         return {
-            game_id: mapping.get(game_id, COMM_ID_NOT_AVAILABLE)
+            game_id: mapping.get(game_id, [])
             for game_id in game_ids
         }
 
-    async def get_trophy_titles(self) -> List[TrophyTitle]:
-        def title_parser(title) -> TrophyTitle:
-            return TrophyTitle(
-                communication_id=title["npCommunicationId"],
-                last_update_time=parse_timestamp((title.get("fromUser") or {})["lastUpdateDate"])
-            )
+    async def get_trophy_titles(self) -> TrophyTitles:
+        def title_parser(title) -> Tuple[CommunicationId, UnixTimestamp]:
+            return (title["npCommunicationId"], parse_timestamp((title.get("fromUser") or {})["lastUpdateDate"]))
 
-        def titles_parser(response) -> List[TrophyTitle]:
+        def titles_parser(response) -> List[Tuple[CommunicationId, UnixTimestamp]]:
             return [
                 title_parser(title) for title in response.get("trophyTitles", [])
             ] if response else []
 
-        return await self.fetch_paginated_data(
+        result = await self.fetch_paginated_data(
             parser=titles_parser,
             url=TROPHY_TITLES_URL,
             counter_name="totalResults",
@@ -182,11 +175,12 @@ class PSNClient:
                 "npLanguage": "en"
             }
         )
+        return dict(result)
 
     async def async_get_earned_trophies(self, communication_id) -> List[Achievement]:
         def trophy_parser(trophy) -> Achievement:
             return Achievement(
-                achievement_id=str(trophy["trophyId"]),
+                achievement_id="{}_{}".format(communication_id, trophy["trophyId"]),
                 achievement_name=str(trophy["trophyName"]),
                 unlock_time=parse_timestamp(trophy["fromUser"]["earnedDate"])
             )

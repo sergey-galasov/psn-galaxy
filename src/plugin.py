@@ -1,5 +1,8 @@
 import asyncio
+import binascii
+import json
 import logging
+import pickle
 import sys
 from collections import defaultdict
 
@@ -8,6 +11,8 @@ from galaxy.api.types import Authentication, NextStep, Achievement
 from galaxy.api.consts import Platform
 from galaxy.api.jsonrpc import InvalidParams
 from galaxy.api.errors import ApplicationError, InvalidCredentials, UnknownError, AuthenticationRequired
+
+import serialization
 from cache import Cache
 from http_client import AuthenticatedHttpClient
 from psn_client import (
@@ -31,14 +36,20 @@ _CID_TIDS_DICT = Dict[TitleId, Set[CommunicationId]]
 _TID_CIDS_DICT = Dict[CommunicationId, Set[TitleId]]
 _TID_TROPHIES_DICT = Dict[TitleId, List[Achievement]]
 
+TROPHIES_CACHE_KEY = "trophies"
+COMMUNICATION_IDS_CACHE_KEY = "communication_ids"
+
 class PSNPlugin(Plugin):
     def __init__(self, reader, writer, token):
         super().__init__(Platform.Psn, __version__, reader, writer, token)
         self._http_client = AuthenticatedHttpClient(self.lost_authentication)
         self._psn_client = PSNClient(self._http_client)
-        self._comm_ids_cache: Dict[TitleId, List[CommunicationId]] = {}
         self._trophies_cache = Cache()
         logging.getLogger("urllib3").setLevel(logging.FATAL)
+
+    @property
+    def _comm_ids_cache(self):
+        return self.persistent_cache.setdefault(COMMUNICATION_IDS_CACHE_KEY, {})
 
     async def _do_auth(self, npsso):
         if not npsso:
@@ -84,6 +95,7 @@ class PSNPlugin(Plugin):
         ])
 
         self._comm_ids_cache.update(delta)
+        self.push_cache()
         return delta
 
     async def get_game_communication_ids(self, title_ids: List[TitleId]) -> Dict[TitleId, List[CommunicationId]]:
@@ -146,6 +158,14 @@ class PSNPlugin(Plugin):
             requests.append(self._import_trophies(comm_id, pending_tids, pending_tid_cids, tid_trophies, timestamp))
 
         await asyncio.gather(*requests)
+
+        # update cache
+        if requests:
+            try:
+                self.persistent_cache[TROPHIES_CACHE_KEY] = serialization.dumps(self._trophies_cache)
+                self.push_cache()
+            except (pickle.PicklingError, binascii.Error):
+                logging.error("Can not serialize trophies cache")
 
         # log if some games has not been processed (it shouldn't happen)
         for tid in pending_tid_cids.keys():
@@ -231,6 +251,21 @@ class PSNPlugin(Plugin):
 
     def shutdown(self):
         asyncio.create_task(self._http_client.logout())
+
+    def handshake_complete(self):
+        trophies_cache = self.persistent_cache.get(TROPHIES_CACHE_KEY)
+        if trophies_cache is not None:
+            try:
+                self._trophies_cache = serialization.loads(trophies_cache)
+            except (pickle.UnpicklingError, binascii.Error):
+                logging.exception("Can not deserialize trophies cache")
+
+        comm_ids_cache = self.persistent_cache.get(COMMUNICATION_IDS_CACHE_KEY)
+        if comm_ids_cache:
+            try:
+                self.persistent_cache[COMMUNICATION_IDS_CACHE_KEY] = json.loads(comm_ids_cache)
+            except json.JSONDecodeError:
+                logging.exception("Can not deserialize communication ids cache")
 
 
 def main():

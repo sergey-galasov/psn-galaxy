@@ -4,7 +4,8 @@ from psn_client import DEFAULT_LIMIT, FRIENDS_URL
 from http_client import paginate_url
 from tests.test_data import BACKEND_USER_PROFILES, FRIEND_INFO_LIST
 
-GET_ALL_FRIENDS_URL = paginate_url(FRIENDS_URL.format(user_id="me"), limit=DEFAULT_LIMIT)
+DEFAULT_AVATAR_SIZE = "l"
+GET_ALL_FRIENDS_URL = paginate_url(FRIENDS_URL.format(user_id="me", avatar_size_list=DEFAULT_AVATAR_SIZE), limit=DEFAULT_LIMIT)
 
 
 def test_not_authenticated(psn_plugin, event_loop):

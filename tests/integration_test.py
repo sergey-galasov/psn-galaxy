@@ -42,19 +42,14 @@ def test_integration():
     plugin_socket.sendall((json.dumps(request)+"\n").encode("utf-8"))
     response = json.loads(plugin_socket.recv(4096))
     print(response)
-    assert response == {
-        "id": "3",
-        "jsonrpc": "2.0",
-        "result": {
-            "platform_name": "psn",
-            "features": [
-                "ImportOwnedGames",
-                "ImportAchievements",
-                "ImportFriends"
-            ],
-            "token": token
-        }
-    }, "Response differs from expected"
+    assert response["result"]["platform_name"] == "psn"
+    assert set(response["result"]["features"]) == set([
+                'ImportAchievements',
+                'ImportOwnedGames',
+                'ImportUserPresence',
+                'ImportFriends'
+            ])
+    assert response["result"]["token"] == token
 
     plugin_socket.close()
     result.wait(TIMEOUT)

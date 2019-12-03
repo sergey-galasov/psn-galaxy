@@ -7,9 +7,9 @@ from galaxy.api.jsonrpc import InvalidParams
 from plugin import COMMUNICATION_IDS_CACHE_KEY
 from psn_client import GAME_DETAILS_URL
 from tests.async_mock import AsyncMock
-from tests.test_data import GAMES, TITLE_TO_COMMUNICATION_ID, TITLES, UNLOCKED_ACHIEVEMENTS
+from tests.test_data import GAMES, TITLE_TO_COMMUNICATION_ID, TITLES, UNLOCKED_ACHIEVEMENTS, CONTEXT, TROPHIES_CACHE
 
-GAME_ID = GAMES[0].game_id
+GAME_ID = GAMES[7].game_id
 
 
 @pytest.fixture
@@ -127,13 +127,12 @@ async def test_cache_miss_on_dlc_achievements_retrieval(
 
     assert COMMUNICATION_IDS_CACHE_KEY not in authenticated_plugin.persistent_cache
     with pytest.raises(InvalidParams):
-        await authenticated_plugin.get_unlocked_achievements(dlc_id)
+        await authenticated_plugin.get_unlocked_achievements(dlc_id, CONTEXT)
 
     assert mapping == authenticated_plugin.persistent_cache[COMMUNICATION_IDS_CACHE_KEY]
 
     assert not mock_client_get_earned_trophies.called
     mock_get_game_communication_id_map.assert_called_once_with([dlc_id])
-
 
 @pytest.mark.asyncio
 async def test_cache_miss_on_game_achievements_retrieval(
@@ -145,16 +144,15 @@ async def test_cache_miss_on_game_achievements_retrieval(
     mapping = {GAME_ID: comm_ids}
     mock_get_game_communication_id_map.return_value = mapping
     mock_client_get_earned_trophies.return_value = UNLOCKED_ACHIEVEMENTS
+    authenticated_plugin._trophies_cache = TROPHIES_CACHE
 
     assert "communication_ids" not in authenticated_plugin.persistent_cache
 
-    assert UNLOCKED_ACHIEVEMENTS == await authenticated_plugin.get_unlocked_achievements(GAME_ID)
+    assert UNLOCKED_ACHIEVEMENTS == await authenticated_plugin.get_unlocked_achievements(GAME_ID, CONTEXT)
 
     assert mapping == authenticated_plugin.persistent_cache[COMMUNICATION_IDS_CACHE_KEY]
 
-    mock_client_get_earned_trophies.assert_called_once_with(comm_ids[0])
     mock_get_game_communication_id_map.assert_called_once_with([GAME_ID])
-
 
 @pytest.mark.asyncio
 async def test_cached_on_dlc_achievements_retrieval(
@@ -168,7 +166,7 @@ async def test_cached_on_dlc_achievements_retrieval(
 
     mock_persistent_cache.return_value = {COMMUNICATION_IDS_CACHE_KEY: mapping}
     with pytest.raises(InvalidParams):
-        await authenticated_plugin.get_unlocked_achievements(dlc_id)
+        await authenticated_plugin.get_unlocked_achievements(dlc_id, CONTEXT)
 
     assert mapping == authenticated_plugin.persistent_cache[COMMUNICATION_IDS_CACHE_KEY]
 
@@ -179,22 +177,20 @@ async def test_cached_on_dlc_achievements_retrieval(
 @pytest.mark.asyncio
 async def test_cached_on_game_achievements_retrieval(
     authenticated_plugin,
-    mock_client_get_earned_trophies,
     mock_get_game_communication_id_map,
     mock_persistent_cache
 ):
     comm_ids = TITLE_TO_COMMUNICATION_ID[GAME_ID]
     mapping = {GAME_ID: comm_ids}
 
-    mock_client_get_earned_trophies.return_value = UNLOCKED_ACHIEVEMENTS
+    authenticated_plugin._trophies_cache = TROPHIES_CACHE
     mock_persistent_cache.return_value = {COMMUNICATION_IDS_CACHE_KEY: mapping.copy()}
 
-    assert UNLOCKED_ACHIEVEMENTS == await authenticated_plugin.get_unlocked_achievements(GAME_ID)
+    assert UNLOCKED_ACHIEVEMENTS == await authenticated_plugin.get_unlocked_achievements(GAME_ID, CONTEXT)
 
     assert not mock_get_game_communication_id_map.called
     assert mapping == authenticated_plugin.persistent_cache[COMMUNICATION_IDS_CACHE_KEY]
 
-    mock_client_get_earned_trophies.assert_called_once_with(comm_ids[0])
 
 
 @pytest.mark.asyncio

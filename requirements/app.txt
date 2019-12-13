@@ -1,4 +1,4 @@
 aiohttp==3.5.4
-galaxy.plugin.api==0.59
+galaxy.plugin.api==0.62
 urllib3==1.24.1
 certifi==2019.3.9

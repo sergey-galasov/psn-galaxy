@@ -110,6 +110,19 @@ async def test_failed_to_get_user_info_during_auth(
 
 
 @pytest.mark.asyncio
+async def test_invalid_authorization_response(
+    get_access_token,
+    psn_plugin,
+    stored_credentials,
+    npsso
+):
+    get_access_token.side_effect = InvalidCredentials
+    with pytest.raises(InvalidCredentials):
+        assert await psn_plugin.authenticate(stored_credentials)
+    get_access_token.assert_called_once_with(npsso)
+
+
+@pytest.mark.asyncio
 async def test_invalid_access_token(
     get_access_token,
     psn_plugin,

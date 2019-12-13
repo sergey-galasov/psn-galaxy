@@ -12,7 +12,8 @@ from galaxy.api.errors import (
     InvalidCredentials,
     UnknownBackendResponse
 )
-from galaxy.http import HttpClient
+from galaxy.http import handle_exception, create_client_session
+
 
 OAUTH_LOGIN_REDIRECT_URL = "https://my.playstation.com/auth/response.html"
 
@@ -54,21 +55,19 @@ OAUTH_TOKEN_URL = OAUTH_URL_BASE + "?requestID=iframe_request_c37ac45d-d6f2-4585
     "&targetOrigin=https://my.playstation.com" \
     "&prompt=none"
 
-
 DEFAULT_TIMEOUT = 30
-CONNECTION_LIMIT = 20
 
 
 def paginate_url(url, limit, offset=0):
     return url + "&limit={limit}&offset={offset}".format(limit=limit, offset=offset)
 
 
-class AuthenticatedHttpClient(HttpClient):
+class AuthenticatedHttpClient:
     def __init__(self, auth_lost_callback):
         self._access_token = None
         self._refresh_token = None
         self._auth_lost_callback = auth_lost_callback
-        super().__init__(limit=CONNECTION_LIMIT, timeout=aiohttp.ClientTimeout(total=DEFAULT_TIMEOUT))
+        self._session = create_client_session(timeout=aiohttp.ClientTimeout(total=DEFAULT_TIMEOUT))
 
     @property
     def is_authenticated(self):
@@ -80,20 +79,27 @@ class AuthenticatedHttpClient(HttpClient):
         if self._auth_lost_callback:
             self._auth_lost_callback()
 
+    def _validate_auth_response(self, location_params):
+        location_query = dict(parse_qsl(location_params.query))
+        if "error" in location_query:
+            raise AuthenticationRequired(location_query)
+
     async def get_access_token(self, refresh_token):
         response = None
         try:
-            response = await super().request(
+            response = await self._request(
                 "GET",
                 url=OAUTH_TOKEN_URL,
                 cookies={"npsso": refresh_token},
                 allow_redirects=False
             )
-            return dict(parse_qsl(urlsplit(response.headers["Location"]).fragment))["access_token"]
-        except AuthenticationRequired:
-            raise InvalidCredentials()
+            location_params = urlsplit(response.headers["Location"])
+            self._validate_auth_response(location_params)
+            return dict(parse_qsl(location_params.fragment))["access_token"]
+        except AuthenticationRequired as e:
+            raise InvalidCredentials(e.data)
         except (KeyError, IndexError):
-            raise UnknownBackendResponse()
+            raise UnknownBackendResponse(str(response.headers))
         finally:
             if response:
                 response.close()
@@ -123,15 +129,19 @@ class AuthenticatedHttpClient(HttpClient):
             raise AuthenticationRequired()
 
         try:
-            return await self._request(method, *args, **kwargs)
+            return await self._oauth_request(method, *args, **kwargs)
         except AuthenticationRequired:
             await self._refresh_access_token()
-            return await self._request(method, *args, **kwargs)
+            return await self._oauth_request(method, *args, **kwargs)
 
-    async def _request(self, method, *args, **kwargs):
+    async def _oauth_request(self, method, *args, **kwargs):
         headers = kwargs.setdefault("headers", {})
         headers["authorization"] = "Bearer " + self._access_token
-        return await super().request(method, *args, **kwargs)
+        return await self._request(method, *args, **kwargs)
+
+    async def _request(self, method, *args, **kwargs):
+        with handle_exception():
+            return await self._session.request(method, *args, **kwargs)
 
     async def get(self, url, *args, **kwargs):
         response = await self.request("GET", *args, url=url, **kwargs)

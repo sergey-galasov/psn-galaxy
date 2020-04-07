@@ -5,9 +5,10 @@ from functools import partial
 from typing import Dict, List, NewType, Tuple
 
 from galaxy.api.errors import UnknownBackendResponse
-from galaxy.api.types import Achievement, Game, LicenseInfo, UserInfo, UserPresence, PresenceState
+from galaxy.api.types import Achievement, Game, LicenseInfo, UserInfo, UserPresence, PresenceState, SubscriptionGame
 from galaxy.api.consts import LicenseType
 from http_client import paginate_url
+from psn_store import PSNFreePlusStore, AccountUserInfo
 
 # game_id_list is limited to 5 IDs per request
 GAME_DETAILS_URL = "https://pl-tpy.np.community.playstation.net/trophy/v1/apps/trophyTitles" \
@@ -37,6 +38,9 @@ EARNED_TROPHIES_PAGE = "https://pl-tpy.np.community.playstation.net/trophy/v1/" 
 USER_INFO_URL = "https://pl-prof.np.community.playstation.net/userProfile/v1/users/{user_id}/profile2" \
     "?fields=accountId,onlineId"
 
+USER_INFO_PSPLUS_URL = "https://pl-prof.np.community.playstation.net/userProfile/v1/users/{user_id}/profile2" \
+    "?fields=plus"
+
 DEFAULT_AVATAR_SIZE = "l"
 FRIENDS_URL = "https://us-prof.np.community.playstation.net/userProfile/v1/users/{user_id}/friends/profiles2" \
     "?fields=accountId,onlineId,avatarUrls&avatarSizes={avatar_size_list}"
@@ -44,6 +48,7 @@ FRIENDS_URL = "https://us-prof.np.community.playstation.net/userProfile/v1/users
 FRIENDS_WITH_PRESENCE_URL = "https://us-prof.np.community.playstation.net/userProfile/v1/users/{user_id}/friends/profiles2" \
     "?fields=accountId,onlineId,primaryOnlineStatus,presences(@titleInfo,lastOnlineDate)"
 
+ACCOUNTS_URL = "https://accounts.api.playstation.com/api/v1/accounts/{user_id}"
 
 DEFAULT_LIMIT = 100
 MAX_TITLE_IDS_PER_REQUEST = 5
@@ -53,10 +58,15 @@ TitleId = NewType("TitleId", str)
 UnixTimestamp = NewType("UnixTimestamp", int)
 TrophyTitles = Dict[CommunicationId, UnixTimestamp]
 
+
 def parse_timestamp(earned_date) -> UnixTimestamp:
     dt = datetime.strptime(earned_date, "%Y-%m-%dT%H:%M:%SZ")
     dt = datetime.combine(dt.date(), dt.time(), timezone.utc)
-    return UnixTimestamp(dt.timestamp())
+    return UnixTimestamp(int(dt.timestamp()))
+
+
+def date_today():
+    return datetime.today()
 
 
 class PSNClient:
@@ -108,11 +118,24 @@ class PSNClient:
 
     async def async_get_own_user_info(self):
         def user_info_parser(response):
+            logging.debug(f'user profile data: {response}')
             return response["profile"]["accountId"], response["profile"]["onlineId"]
 
         return await self.fetch_data(
             user_info_parser,
             USER_INFO_URL.format(user_id="me")
+        )
+
+    async def get_psplus_status(self) -> bool:
+        def user_subscription_parser(response):
+            status = response["profile"]["plus"]
+            if status in [0, 1, True, False]:
+                return bool(status)
+            raise TypeError
+
+        return await self.fetch_data(
+            user_subscription_parser,
+            USER_INFO_PSPLUS_URL.format(user_id="me")
         )
 
     async def async_get_owned_games(self):
@@ -255,3 +278,25 @@ class PSNClient:
             FRIENDS_WITH_PRESENCE_URL.format(user_id="me"),
             "totalResults"
         )
+
+    async def get_account_info(self) -> AccountUserInfo:
+        def account_user_parser(data):
+            td = date_today() - datetime.fromisoformat(data['dateOfBirth'])
+            age = td.days // 365
+            return AccountUserInfo(data['region'], data['legalCountry'], data['language'], age)
+
+        return await self.fetch_data(account_user_parser, ACCOUNTS_URL.format(user_id='me'), silent=True)
+
+    async def get_subscription_games(self, account_info: AccountUserInfo) -> List[SubscriptionGame]:
+        def games_parser(data):
+            return [
+                SubscriptionGame(
+                    game_id=item['id'].split('-')[1],
+                    game_title=item['attributes']['name']
+                )
+                for item in data['included']
+                if item['type'] in ['game', 'game-related']
+            ]
+
+        store = PSNFreePlusStore(self._http_client, account_info)
+        return await self.fetch_data(games_parser, store.games_container_url)

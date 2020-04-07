@@ -36,6 +36,21 @@ def user_profile(online_id, account_id):
 
 
 @pytest.fixture()
+def psplus_active_status():
+    return 1
+
+
+@pytest.fixture()
+def user_profile_psplus(psplus_active_status):
+    return {"profile": {"plus": psplus_active_status}}
+
+
+@pytest.fixture()
+def psplus_name():
+    return "PlayStation PLUS"
+
+
+@pytest.fixture()
 def http_get(mocker):
     return mocker.patch(
         "plugin.AuthenticatedHttpClient.get",
@@ -48,7 +63,7 @@ async def psn_plugin():
     plugin = PSNPlugin(MagicMock(), MagicMock(), None)
     yield plugin
 
-    plugin.shutdown()
+    await plugin.shutdown()
 
 
 @pytest.fixture()

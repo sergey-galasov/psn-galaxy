@@ -7,7 +7,7 @@ import sys
 from collections import defaultdict
 
 from galaxy.api.plugin import Plugin, create_and_run_plugin
-from galaxy.api.types import Authentication, NextStep, Achievement, UserPresence, PresenceState
+from galaxy.api.types import Authentication, NextStep, Achievement, UserPresence, PresenceState, SubscriptionGame, Subscription
 from galaxy.api.consts import Platform
 from galaxy.api.errors import ApplicationError, InvalidCredentials, UnknownError
 from galaxy.api.jsonrpc import InvalidParams
@@ -19,7 +19,7 @@ from psn_client import (
     CommunicationId, TitleId, TrophyTitles, UnixTimestamp,
     PSNClient, MAX_TITLE_IDS_PER_REQUEST
 )
-from typing import Dict, List, Set, Iterable, Tuple, Optional, Any
+from typing import Dict, List, Set, Iterable, Tuple, Optional, Any, AsyncGenerator
 from version import __version__
 
 from http_client import OAUTH_LOGIN_URL, OAUTH_LOGIN_REDIRECT_URL
@@ -112,6 +112,14 @@ class PSNPlugin(Plugin):
             result.update(await self.update_communication_id_cache(list(misses)))
 
         return result
+
+    async def get_subscriptions(self) -> List[Subscription]:
+        is_plus_active = await self._psn_client.get_psplus_status()
+        return [Subscription(subscription_name="PlayStation PLUS", end_time=None, owned=is_plus_active)]
+
+    async def get_subscription_games(self, subscription_name: str, context: Any) -> AsyncGenerator[List[SubscriptionGame], None]:
+        account_info = await self._psn_client.get_account_info()
+        yield await self._psn_client.get_subscription_games(account_info)
 
     async def get_owned_games(self):
         async def filter_games(titles):
@@ -233,8 +241,8 @@ class PSNPlugin(Plugin):
     async def get_friends(self):
         return await self._psn_client.async_get_friends()
 
-    def shutdown(self):
-        asyncio.create_task(self._http_client.logout())
+    async def shutdown(self):
+        await self._http_client.logout()
 
     def handshake_complete(self):
         trophies_cache = self.persistent_cache.get(TROPHIES_CACHE_KEY)

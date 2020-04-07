@@ -1,5 +1,5 @@
 from galaxy.api.consts import LicenseType
-from galaxy.api.types import Achievement, UserInfo, Game, LicenseInfo
+from galaxy.api.types import Achievement, UserInfo, Game, LicenseInfo, SubscriptionGame
 from cache import Cache, CacheEntry
 
 COMMUNICATION_ID = "NPWR11556_00"
@@ -14,7 +14,7 @@ GAMES = [
     Game("CUSA01858_00", "Grim Fandango Remastered", [], DEFAULT_LICENSE),
     Game("CUSA04607_00", "Batman: Return to Arkham - Arkham Asylum", [], DEFAULT_LICENSE),
     Game("CUSA00860_00", "Tales from the Borderlands", [], DEFAULT_LICENSE),
-    Game("CUSA07320_00", "Horizon Zero Dawn™", [], DEFAULT_LICENSE),
+    Game("CUSA07320_00", "Horizon Zero Dawnâ„¢", [], DEFAULT_LICENSE),
     Game("CUSA07140_00", "Dreamfall Chapters", [], DEFAULT_LICENSE),
     Game("CUSA08487_00", "Life is Strange: Before the Storm", [], DEFAULT_LICENSE)
 ]
@@ -37,7 +37,7 @@ BACKEND_GAME_TITLES_WITHOUT_DLC = {
         {"titleId": "CUSA01858_00", "name": "Grim Fandango Remastered"},
         {"titleId": "CUSA04607_00", "name": "Batman: Return to Arkham - Arkham Asylum"},
         {"titleId": "CUSA00860_00", "name": "Tales from the Borderlands"},
-        {"titleId": "CUSA07320_00", "name": "Horizon Zero Dawn™"},
+        {"titleId": "CUSA07320_00", "name": "Horizon Zero Dawnâ„¢"},
         {"titleId": "CUSA07140_00", "name": "Dreamfall Chapters"},
         {"titleId": "CUSA08487_00", "name": "Life is Strange: Before the Storm"}
     ]
@@ -55,7 +55,7 @@ BACKEND_GAME_TITLES_WITH_DLC = {
         {"titleId": "CUSA01858_00", "name": "Grim Fandango Remastered"},
         {"titleId": "CUSA04607_00", "name": "Batman: Return to Arkham - Arkham Asylum"},
         {"titleId": "CUSA00860_00", "name": "Tales from the Borderlands"},
-        {"titleId": "CUSA07320_00", "name": "Horizon Zero Dawn™"},
+        {"titleId": "CUSA07320_00", "name": "Horizon Zero Dawnâ„¢"},
         {"titleId": "CUSA07719_00", "name": "Dreamfall Chapters (Original Soundtrack)"},
         {"titleId": "CUSA07140_00", "name": "Dreamfall Chapters"},
         {"titleId": "CUSA08487_00", "name": "Life is Strange: Before the Storm"}
@@ -214,3 +214,80 @@ FRIEND_INFO_LIST = [
 
 CONTEXT = {'NPWR16617_00': 1569108306.0, 'NPWR11453_00': 1567944392.0, 'NPWR16532_00': 1567545710.0, 'NPWR10526_00': 1566592417.0, 'NPWR15355_00': 1554141081.0, 'NPWR16687_00': 1553463882.0, 'NPWR13157_00': 1552250990.0, 'NPWR09412_00': 1549056652.0, 'NPWR12518_00': 1546473026.0, 'NPWR14695_00': 1546127236.0, 'NPWR07028_00': 1546030925.0, 'NPWR14376_00': 1545849865.0, 'NPWR13320_00': 1544914476.0, 'NPWR11631_00': 1544911126.0, 'NPWR06302_00': 1544888234.0, 'NPWR06685_00': 1544881604.0, 'NPWR13650_00': 1544828007.0, 'NPWR12662_00': 1544733951.0, 'NPWR15453_00': 1544646241.0, 'NPWR08260_00': 1544561891.0, 'NPWR13648_00': 1544555969.0, 'NPWR14065_00': 1543755146.0, 'NPWR07897_00': 1528635032.0, 'NPWR11469_00': 1528580350.0, 'NPWR08899_00': 1528349310.0, 'NPWR14963_00': 1528225627.0, 'NPWR11704_00': 1528053359.0, 'NPWR10261_00': 1526112707.0, 'NPWR14513_00': 1525182963.0, 'NPWR13970_00': 1524598278.0, 'NPWR05424_00': 1523813120.0, 'NPWR11920_00': 1523381863.0, 'NPWR07942_00': 1523299564.0, 'NPWR09187_00': 1523137528.0, 'NPWR14858_00': 1522962802.0, 'NPWR08864_00': 1522791973.0, 'NPWR09600_00': 1520813610.0, 'NPWR13161_00': 1519857527.0, 'NPWR09694_00': 1518818903.0, 'NPWR10810_00': 1518302892.0, 'NPWR09071_00': 1516049483.0, 'NPWR11866_00': 1514765179.0, 'NPWR08840_00': 1514647655.0, 'NPWR09304_00': 1514640325.0, 'NPWR08844_00': 1514401356.0, 'NPWR13263_00': 1514250188.0, 'NPWR06221_00': 1513543300.0, 'NPWR11659_00': 1510523951.0, 'NPWR10569_00': 1509043324.0, 'NPWR13412_00': 1508862631.0, 'NPWR04915_00': 1505244423.0, 'NPWR12845_00': 1504894257.0, 'NPWR12042_00': 1504214093.0, 'NPWR08935_00': 1502561238.0, 'NPWR06040_00': 1500916492.0, 'NPWR10876_00': 1500591963.0, 'NPWR08268_00': 1499886156.0, 'NPWR09350_00': 1499705028.0, 'NPWR08661_00': 1498935916.0, 'NPWR05818_00': 1494083469.0, 'NPWR08983_00': 1490903238.0, 'NPWR11556_00': 1490374318.0, 'NPWR04914_00': 1489329259.0}
 
+
+USER_ACCOUNTS_DATA = {
+    'language': 'en_US',
+    'legalCountry': 'US',
+    'dateOfBirth': '2003-02-12',
+    'region': 'SCEA'
+}
+
+
+SUBSCRIPTION_GAMES = [
+    SubscriptionGame(game_title='BioShock: The Collection', game_id='CUSA03979_00'),
+    SubscriptionGame(game_title='The Sims™ 4', game_id='CUSA09209_00'),
+    SubscriptionGame(game_title='Firewall Zero Hour™', game_id='CUSA09831_00')
+]
+
+BACKEND_STORE_FREEPSPLUS_CONTAINER = {
+    "data": {
+        "attributes": {
+            "attributes": {},
+            "id": "STORE-MSF77008-PSPLUSFREEGAMES",
+            "type": "container",
+            "relationships": {
+                "children": {
+                    "data": [
+                        {
+                            "id": "UP1001-CUSA03979_00-BIOSHOCKCOLLECTN",
+                            "type": "game"
+                        },
+                        {
+                            "id": "UP0006-CUSA09209_00-THESIMS400000000",
+                            "type": "game"
+                        },
+                        {
+                            "id": "UP9000-CUSA09831_00-FIREWALL00000000",
+                            "type": "game-related"
+                        }
+                    ]
+                },
+            }
+        },
+    },
+    "included": [
+        {
+            "attributes": {
+                "name": "BioShock: The Collection",
+                "platforms": ["PS4"]
+            },
+            "id": "UP1001-CUSA03979_00-BIOSHOCKCOLLECTN",
+            "type": "game"
+        },
+        {
+            "attributes": {
+                "name": "Full Game",
+                "platforms": [0, 10, 13],
+            },
+            "id": "UP0006-CUSA09209_00-THESIMS400000000-U002",
+            "type": "legacy-skus"
+        },
+        {
+            "attributes": {
+                "name": "The Sims™ 4",
+                "platforms": ["PS4"]
+            },
+            "id": "UP0006-CUSA09209_00-THESIMS400000000",
+            "type": "game"
+        },
+        {
+            "attributes": {
+                "name": "Firewall Zero Hour™",
+                "platforms": ["PS4"],
+                "ps-vr-compatibility": "required",
+            },
+            "id": "UP9000-CUSA09831_00-FIREWALL00000000-U002",
+            "type": "game-related"
+        },
+    ]
+}

@@ -62,12 +62,38 @@ def paginate_url(url, limit, offset=0):
     return url + "&limit={limit}&offset={offset}".format(limit=limit, offset=offset)
 
 
-class AuthenticatedHttpClient:
+class HttpClient:
+    def __init__(self):
+        self._session = create_client_session(timeout=aiohttp.ClientTimeout(total=DEFAULT_TIMEOUT))
+
+    async def request(self, method, *args, **kwargs):
+        with handle_exception():
+            return await self._session.request(method, *args, **kwargs)
+
+    async def get(self, url, *args, **kwargs):
+        silent = kwargs.pop('silent', False)
+        response = await self.request("GET", *args, url=url, **kwargs)
+        try:
+            raw_response = '***' if silent else await response.text()
+            logging.debug("Response for:\n{url}\n{data}".format(url=url, data=raw_response))
+            return await response.json()
+        except ValueError:
+            logging.exception("Invalid response data for:\n{url}".format(url=url))
+            raise UnknownBackendResponse()
+
+    async def post(self, url, *args, **kwargs):
+        logging.debug("Sending data:\n{url}".format(url=url))
+        response = await self.request("POST", *args, url=url, **kwargs)
+        logging.debug("Response for post:\n{url}\n{data}".format(url=url, data=await response.text()))
+        return response
+
+
+class AuthenticatedHttpClient(HttpClient):
     def __init__(self, auth_lost_callback):
         self._access_token = None
         self._refresh_token = None
         self._auth_lost_callback = auth_lost_callback
-        self._session = create_client_session(timeout=aiohttp.ClientTimeout(total=DEFAULT_TIMEOUT))
+        super().__init__()
 
     @property
     def is_authenticated(self):
@@ -87,7 +113,7 @@ class AuthenticatedHttpClient:
     async def get_access_token(self, refresh_token):
         response = None
         try:
-            response = await self._request(
+            response = await super().request(
                 "GET",
                 url=OAUTH_TOKEN_URL,
                 cookies={"npsso": refresh_token},
@@ -127,7 +153,6 @@ class AuthenticatedHttpClient:
     async def request(self, method, *args, **kwargs):
         if not self._access_token:
             raise AuthenticationRequired()
-
         try:
             return await self._oauth_request(method, *args, **kwargs)
         except AuthenticationRequired:
@@ -137,24 +162,7 @@ class AuthenticatedHttpClient:
     async def _oauth_request(self, method, *args, **kwargs):
         headers = kwargs.setdefault("headers", {})
         headers["authorization"] = "Bearer " + self._access_token
-        return await self._request(method, *args, **kwargs)
-
-    async def _request(self, method, *args, **kwargs):
-        with handle_exception():
-            return await self._session.request(method, *args, **kwargs)
-
-    async def get(self, url, *args, **kwargs):
-        response = await self.request("GET", *args, url=url, **kwargs)
-        try:
-            logging.debug("Response for:\n{url}\n{data}".format(url=url, data=await response.text()))
-            return await response.json()
-        except ValueError:
-            logging.exception("Invalid response data for:\n{url}".format(url=url))
-            raise UnknownBackendResponse()
-
-    async def post(self, url, *args, **kwargs):
-        logging.debug("Sending data:\n{url}".format(url=url))
-        return await self.request("POST", *args, url=url, **kwargs)
+        return await super().request(method, *args, **kwargs)
 
     async def logout(self):
         await self._session.close()

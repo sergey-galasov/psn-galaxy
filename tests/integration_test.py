@@ -47,6 +47,8 @@ def test_integration():
                 'ImportAchievements',
                 'ImportOwnedGames',
                 'ImportUserPresence',
+                'ImportSubscriptions',
+                'ImportSubscriptionGames',
                 'ImportFriends'
             ])
     assert response["result"]["token"] == token

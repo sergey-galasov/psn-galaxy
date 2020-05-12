@@ -47,7 +47,6 @@ async def test_no_stored_credentials(
 
     get_access_token.return_value = access_token
     http_get.return_value = user_profile
-    store_credentials = mocker.patch("plugin.PSNPlugin.store_credentials")
 
     assert auth_info == await psn_plugin.pass_login_credentials(
         "whatever step",
@@ -57,7 +56,6 @@ async def test_no_stored_credentials(
 
     get_access_token.assert_called_once_with(npsso)
     http_get.assert_called_once_with(OWN_USER_INFO_URL)
-    store_credentials.assert_called_once_with(stored_credentials)
 
 
 @pytest.mark.asyncio

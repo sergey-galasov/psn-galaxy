@@ -92,7 +92,7 @@ async def authenticated_psn_client(
 ):
 
     mocker.patch.object(AuthenticatedHttpClient, "get_access_token", return_value=access_token, new_callable=AsyncMock)
-    http_client = AuthenticatedHttpClient(None)
+    http_client = AuthenticatedHttpClient(None, None)
     await http_client.authenticate(npsso)
 
     yield PSNClient(http_client=http_client)

@@ -89,10 +89,11 @@ class HttpClient:
 
 
 class AuthenticatedHttpClient(HttpClient):
-    def __init__(self, auth_lost_callback):
+    def __init__(self, auth_lost_callback, store_credentials_callback):
         self._access_token = None
         self._refresh_token = None
         self._auth_lost_callback = auth_lost_callback
+        self._store_credentials_callback = store_credentials_callback
         super().__init__()
 
     @property
@@ -110,18 +111,30 @@ class AuthenticatedHttpClient(HttpClient):
         if "error" in location_query:
             raise AuthenticationRequired(location_query)
 
-    async def get_access_token(self, refresh_token):
+    def _store_new_npsso(self, cookies):
+        for key, cookie in cookies.items():
+            if key == "npsso":
+                self._refresh_token = cookie.value
+                self._store_credentials_callback({"npsso": self._refresh_token})
+
+    async def get_access_token(self, refresh_token=None, url=OAUTH_TOKEN_URL, cookies=None):
         response = None
+        if cookies is None:
+            cookies = {"npsso": refresh_token}
         try:
             response = await super().request(
                 "GET",
-                url=OAUTH_TOKEN_URL,
-                cookies={"npsso": refresh_token},
+                url=url,
+                cookies=cookies,
                 allow_redirects=False
             )
             location_params = urlsplit(response.headers["Location"])
             self._validate_auth_response(location_params)
-            return dict(parse_qsl(location_params.fragment))["access_token"]
+            fragment = dict(parse_qsl(location_params.fragment))
+            if 'access_token' not in fragment:
+                return await self.get_access_token(url=response.headers['Location'], cookies=response.cookies)
+            self._store_new_npsso(cookies)
+            return fragment["access_token"]
         except AuthenticationRequired as e:
             raise InvalidCredentials(e.data)
         except (KeyError, IndexError):

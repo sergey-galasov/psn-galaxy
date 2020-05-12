@@ -42,7 +42,7 @@ COMMUNICATION_IDS_CACHE_KEY = "communication_ids"
 class PSNPlugin(Plugin):
     def __init__(self, reader, writer, token):
         super().__init__(Platform.Psn, __version__, reader, writer, token)
-        self._http_client = AuthenticatedHttpClient(self.lost_authentication)
+        self._http_client = AuthenticatedHttpClient(self.lost_authentication, self.store_credentials)
         self._psn_client = PSNClient(self._http_client)
         self._trophies_cache = Cache()
         logging.getLogger("urllib3").setLevel(logging.FATAL)
@@ -65,7 +65,8 @@ class PSNPlugin(Plugin):
         if not stored_npsso:
             return NextStep("web_session", AUTH_PARAMS)
 
-        return await self._do_auth(stored_npsso)
+        auth_info = await self._do_auth(stored_npsso)
+        return auth_info
 
     async def pass_login_credentials(self, step, credentials, cookies):
         def get_npsso():
@@ -75,7 +76,6 @@ class PSNPlugin(Plugin):
 
         npsso = get_npsso()
         auth_info = await self._do_auth(npsso)
-        self.store_credentials({"npsso": npsso})
         return auth_info
 
     @staticmethod

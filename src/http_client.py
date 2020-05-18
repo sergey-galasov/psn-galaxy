@@ -1,5 +1,6 @@
 import aiohttp
 import logging
+import asyncio
 
 from urllib.parse import parse_qsl, urlsplit
 
@@ -94,6 +95,7 @@ class AuthenticatedHttpClient(HttpClient):
         self._refresh_token = None
         self._auth_lost_callback = auth_lost_callback
         self._store_credentials_callback = store_credentials_callback
+        self.can_refresh = asyncio.Event()
         super().__init__()
 
     @property
@@ -145,11 +147,18 @@ class AuthenticatedHttpClient(HttpClient):
 
     async def authenticate(self, refresh_token):
         self._refresh_token = refresh_token
-        self._access_token = await self.get_access_token(self._refresh_token)
+        try:
+            self._access_token = await self.get_access_token(self._refresh_token)
+        finally:
+            self.can_refresh.set()
         if not self._access_token:
             raise UnknownBackendResponse("Empty access token")
 
     async def _refresh_access_token(self):
+        if not self.can_refresh.is_set():
+            await self.can_refresh.wait()
+            return
+        self.can_refresh.clear()
         try:
             self._access_token = await self.get_access_token(self._refresh_token)
             if not self._access_token:
@@ -162,6 +171,8 @@ class AuthenticatedHttpClient(HttpClient):
             if self._auth_lost_callback:
                 self._auth_lost_callback()
             raise AuthenticationRequired()
+        finally:
+            self.can_refresh.set()
 
     async def request(self, method, *args, **kwargs):
         if not self._access_token:

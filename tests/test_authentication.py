@@ -173,3 +173,4 @@ async def test_failed_to_refresh_access_token(
         await authenticated_psn_client.async_get_own_user_info()
 
     get_access_token.assert_called_once_with(npsso)
+

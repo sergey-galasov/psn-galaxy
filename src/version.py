@@ -1,12 +1,12 @@
-__version__ = "0.30"
+__version__ = "0.31"
 
 __changelog__ = {
-    "unreleased":"""
+    "0.31": """
         - Fix losing authentication as side effect of shutdown while refreshing credentials
         - Add cache invalidation for title-communication_ids map every 7 days; fixes not showing updated games without reconnection
-        - Provide fallback game name using torphy titltles; fixes not showing some games (Cyberpunk 2077, Mafia: Definitive Edition, ...)
+        - Provide fallback game name using trophy titles; fixes not showing some games (Cyberpunk 2077, Mafia: Definitive Edition, ...)
     """,
-    "0.30":"""
+    "0.30": """
         - Only allow one token refresh at a time
     """,
     "0.29": """

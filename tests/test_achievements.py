@@ -1,14 +1,15 @@
 import asyncio
 import pytest
 from galaxy.api.errors import AuthenticationRequired, UnknownBackendResponse
-from psn_client import EARNED_TROPHIES_PAGE
+from psn_client import EARNED_TROPHIES_PAGE, TrophyTitleInfo
 from tests.async_mock import AsyncMock
 from unittest.mock import MagicMock
-from tests.test_data import COMMUNICATION_ID, GAMES, TITLE_TO_COMMUNICATION_ID, UNLOCKED_ACHIEVEMENTS, CONTEXT, TROPHIES_CACHE, BACKEND_TROPHIES
+from tests.test_data import COMMUNICATION_ID, GAMES, TITLE_TO_TROPHY_TITLE, UNLOCKED_ACHIEVEMENTS, CONTEXT, TROPHIES_CACHE, BACKEND_TROPHIES
 
 GET_ALL_TROPHIES_URL = EARNED_TROPHIES_PAGE.format(communication_id=COMMUNICATION_ID, trophy_group_id="all")
 
 GAME_ID = "CUSA07320_00"
+TROPHY_TITLE_NAME = "Horizon Zero Dawn"
 GAME_IDS = [game.game_id for game in GAMES]
 
 async def _wait_for_comm_ids_and_import_start():
@@ -17,7 +18,7 @@ async def _wait_for_comm_ids_and_import_start():
 
 def _mock_get_game_communication_ids(mocker, mapping):
     return mocker.patch(
-        "plugin.PSNPlugin.get_game_communication_ids",
+        "plugin.PSNPlugin.get_game_trophies_map",
         new_callable=AsyncMock,
         return_value=mapping
     )
@@ -25,20 +26,20 @@ def _mock_get_game_communication_ids(mocker, mapping):
 
 @pytest.fixture
 async def mock_get_game_communication_id(mocker):
-    mocked = _mock_get_game_communication_ids(mocker, {GAME_ID: [COMMUNICATION_ID]})
+    mocked = _mock_get_game_communication_ids(mocker, {GAME_ID: [TrophyTitleInfo(COMMUNICATION_ID, TROPHY_TITLE_NAME)]})
     yield mocked
     mocked.assert_called_once_with([GAME_ID])
 
 
 @pytest.fixture
 async def mock_get_game_communication_ids(mocker):
-    mocked = _mock_get_game_communication_ids(mocker, TITLE_TO_COMMUNICATION_ID)
+    mocked = _mock_get_game_communication_ids(mocker, TITLE_TO_TROPHY_TITLE)
     yield mocked
 
 
 @pytest.fixture
-def mock_async_get_game_communication_id_map(mocker):
-    return mocker.patch("plugin.PSNClient.async_get_game_communication_id_map", new_callable=AsyncMock)
+def mock_async_get_game_trophy_title_info_map(mocker):
+    return mocker.patch("plugin.PSNClient.async_get_game_trophy_title_info_map", new_callable=AsyncMock)
 
 @pytest.fixture
 def mock_async_get_earned_trophies(mocker):
@@ -70,7 +71,7 @@ async def test_get_unlocked_achievements(
     authenticated_plugin,
     mock_get_game_communication_ids,
 ):
-    mock_get_game_communication_ids.return_value = TITLE_TO_COMMUNICATION_ID
+    mock_get_game_communication_ids.return_value = TITLE_TO_TROPHY_TITLE
     authenticated_plugin._trophies_cache = TROPHIES_CACHE
     assert UNLOCKED_ACHIEVEMENTS == await authenticated_plugin.get_unlocked_achievements(GAME_ID, CONTEXT)
 
@@ -79,7 +80,7 @@ async def test_get_unlocked_achievements_trophies_cache_called(
     authenticated_plugin,
     mock_get_game_communication_ids
 ):
-    mock_get_game_communication_ids.return_value = TITLE_TO_COMMUNICATION_ID
+    mock_get_game_communication_ids.return_value = TITLE_TO_TROPHY_TITLE
     authenticated_plugin._get_game_trophies_from_cache = MagicMock()
 
     await authenticated_plugin.get_unlocked_achievements(GAME_ID, CONTEXT)
@@ -126,7 +127,7 @@ async def test_get_unlocked_achievements_no_context(
         authenticated_plugin,
         mock_get_game_communication_ids
 ):
-    mock_get_game_communication_ids.return_value = TITLE_TO_COMMUNICATION_ID
+    mock_get_game_communication_ids.return_value = TITLE_TO_TROPHY_TITLE
     authenticated_plugin._trophies_cache = TROPHIES_CACHE
     assert [] == await authenticated_plugin.get_unlocked_achievements(GAME_ID, None)
 

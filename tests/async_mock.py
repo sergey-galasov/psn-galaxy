@@ -10,6 +10,6 @@ class AsyncMock(MagicMock):
 
 class AsyncMockDelayed(MagicMock):
     async def __call__(self, *args, **kwargs):
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(0)
         # pylint: disable=useless-super-delegation
         return super(AsyncMockDelayed, self).__call__(*args, **kwargs)

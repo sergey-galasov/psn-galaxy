@@ -2,7 +2,7 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 from functools import partial
-from typing import Dict, List, NewType, Tuple
+from typing import Dict, List, NewType, Tuple, NamedTuple
 
 from galaxy.api.errors import UnknownBackendResponse
 from galaxy.api.types import Achievement, Game, LicenseInfo, UserInfo, UserPresence, PresenceState, SubscriptionGame
@@ -56,7 +56,13 @@ MAX_TITLE_IDS_PER_REQUEST = 5
 CommunicationId = NewType("CommunicationId", str)
 TitleId = NewType("TitleId", str)
 UnixTimestamp = NewType("UnixTimestamp", int)
+TrophyTitleName = NewType("TrophyTitleName", str)
 TrophyTitles = Dict[CommunicationId, UnixTimestamp]
+
+
+class TrophyTitleInfo(NamedTuple):
+    communication_id: CommunicationId
+    trophy_title_name: TrophyTitleName
 
 
 def parse_timestamp(earned_date) -> UnixTimestamp:
@@ -158,20 +164,24 @@ class PSNClient:
             "totalResults"
         )
 
-    async def async_get_game_communication_id_map(self, game_ids: List[TitleId]) \
-            -> Dict[TitleId, List[CommunicationId]]:
+    async def async_get_game_trophy_title_info_map(self, game_ids: List[TitleId]) \
+            -> Dict[TitleId, List[TrophyTitleInfo]]:
         def communication_ids_parser(response):
-            def get_comm_ids(trophy_titles):
+            def get_trophy_title_infos(trophy_titles) -> List[TrophyTitleInfo]:
                 result = []
                 for trophy_title in trophy_titles:
                     comm_id = trophy_title.get("npCommunicationId")
+                    trophy_title_name = trophy_title.get("trophyTitleName", "")
                     if comm_id is not None:
-                        result.append(comm_id)
+                        result.append(TrophyTitleInfo(
+                            CommunicationId(comm_id),
+                            TrophyTitleName(trophy_title_name)
+                        ))
                 return result
 
             try:
                 return {
-                    app["npTitleId"]: get_comm_ids(app["trophyTitles"])
+                    app["npTitleId"]: get_trophy_title_infos(app["trophyTitles"])
                     for app in response["apps"]
                 } if response else {}
             except (KeyError, IndexError):

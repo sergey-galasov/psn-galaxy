@@ -3,10 +3,12 @@ from typing import Any, Dict, Optional
 
 from psn_client import UnixTimestamp
 
+
 @dataclass
 class CacheEntry:
     value: Any
     timestamp: UnixTimestamp
+
 
 class Cache:
     def __init__(self):

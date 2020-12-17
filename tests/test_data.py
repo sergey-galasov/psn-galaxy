@@ -1,6 +1,7 @@
 from galaxy.api.consts import LicenseType
 from galaxy.api.types import Achievement, UserInfo, Game, LicenseInfo, SubscriptionGame
 from cache import Cache, CacheEntry
+from psn_client import TrophyTitleInfo
 
 COMMUNICATION_ID = "NPWR11556_00"
 
@@ -12,11 +13,12 @@ GAMES = [
     Game("CUSA05603_00", "Batman", [], DEFAULT_LICENSE),
     Game("CUSA01427_00", "Game of Thrones", [], DEFAULT_LICENSE),
     Game("CUSA01858_00", "Grim Fandango Remastered", [], DEFAULT_LICENSE),
-    Game("CUSA04607_00", "Batman: Return to Arkham - Arkham Asylum", [], DEFAULT_LICENSE),
+    Game("CUSA06291_00", "NARUTO SHIPPUDEN: Ultimate Ninja STORM TRILOGY", [], DEFAULT_LICENSE),
     Game("CUSA00860_00", "Tales from the Borderlands", [], DEFAULT_LICENSE),
     Game("CUSA07320_00", "Horizon Zero Dawnâ„¢", [], DEFAULT_LICENSE),
     Game("CUSA07140_00", "Dreamfall Chapters", [], DEFAULT_LICENSE),
-    Game("CUSA08487_00", "Life is Strange: Before the Storm", [], DEFAULT_LICENSE)
+    Game("CUSA08487_00", "Life is Strange: Before the Storm", [], DEFAULT_LICENSE),
+    Game("CUSA16596_00", "Cyberpunk 2077", [], DEFAULT_LICENSE)
 ]
 
 DLCS = [
@@ -25,25 +27,7 @@ DLCS = [
 
 TITLES = GAMES + DLCS
 
-BACKEND_GAME_TITLES_WITHOUT_DLC = {
-    "start": 0,
-    "size": 10,
-    "totalResults": 10,
-    "titles": [
-        {"titleId": "CUSA07917_00", "name": "Tooth and Tail"},
-        {"titleId": "CUSA02000_00", "name": "Batman: Return to Arkham - Arkham City"},
-        {"titleId": "CUSA05603_00", "name": "Batman"},
-        {"titleId": "CUSA01427_00", "name": "Game of Thrones"},
-        {"titleId": "CUSA01858_00", "name": "Grim Fandango Remastered"},
-        {"titleId": "CUSA04607_00", "name": "Batman: Return to Arkham - Arkham Asylum"},
-        {"titleId": "CUSA00860_00", "name": "Tales from the Borderlands"},
-        {"titleId": "CUSA07320_00", "name": "Horizon Zero Dawnâ„¢"},
-        {"titleId": "CUSA07140_00", "name": "Dreamfall Chapters"},
-        {"titleId": "CUSA08487_00", "name": "Life is Strange: Before the Storm"}
-    ]
-}
-
-BACKEND_GAME_TITLES_WITH_DLC = {
+BACKEND_GAME_TITLES = {
     "start": 0,
     "size": 11,
     "totalResults": 11,
@@ -53,27 +37,38 @@ BACKEND_GAME_TITLES_WITH_DLC = {
         {"titleId": "CUSA05603_00", "name": "Batman"},
         {"titleId": "CUSA01427_00", "name": "Game of Thrones"},
         {"titleId": "CUSA01858_00", "name": "Grim Fandango Remastered"},
-        {"titleId": "CUSA04607_00", "name": "Batman: Return to Arkham - Arkham Asylum"},
+        {"titleId": "CUSA06291_00", "name": "NARUTO SHIPPUDEN: Ultimate Ninja STORM TRILOGY"},  # shown as single item in the console
         {"titleId": "CUSA00860_00", "name": "Tales from the Borderlands"},
         {"titleId": "CUSA07320_00", "name": "Horizon Zero Dawnâ„¢"},
         {"titleId": "CUSA07719_00", "name": "Dreamfall Chapters (Original Soundtrack)"},
         {"titleId": "CUSA07140_00", "name": "Dreamfall Chapters"},
-        {"titleId": "CUSA08487_00", "name": "Life is Strange: Before the Storm"}
+        {"titleId": "CUSA08487_00", "name": "Life is Strange: Before the Storm"},
+        {"titleId": "CUSA16596_00", "name": None}
     ]
 }
 
-TITLE_TO_COMMUNICATION_ID = {
-    "CUSA07917_00": ["NPWR12784_00"],
-    "CUSA02000_00": ["NPWR10584_00"],
-    "CUSA05603_00": ["NPWR11243_00"],
-    "CUSA01427_00": ["NPWR07882_00"],
-    "CUSA01858_00": ["NPWR07722_00"],
-    "CUSA04607_00": ["NPWR10793_00"],
-    "CUSA00860_00": ["NPWR07228_00"],
-    "CUSA07320_00": ["NPWR11556_00"],
+TITLE_TO_TROPHY_TITLE = {
+    "CUSA07917_00": [TrophyTitleInfo("NPWR12784_00", "Tooth and Tail")],
+    "CUSA02000_00": [TrophyTitleInfo("NPWR10584_00", "Batman: Return to Arkham - Arkham City")],
+    "CUSA05603_00": [TrophyTitleInfo("NPWR11243_00", "Batman")],
+    "CUSA01427_00": [TrophyTitleInfo("NPWR07882_00", "Game of Thrones")],
+    "CUSA01858_00": [TrophyTitleInfo("NPWR07722_00", "Grim Fandango Remastered")],
+    "CUSA06291_00": [
+        TrophyTitleInfo("NPWR11628_00", "NARUTO: Ultimate Ninja STORM"),
+        TrophyTitleInfo("NPWR11629_00", "NARUTO SHIPPUDEN: Ultimate Ninja STORM 2"),
+        TrophyTitleInfo("NPWR11630_00", "NARUTO SHIPPUDEN: Ultimate Ninja STORM 3 Full Burst"),
+    ],
+    "CUSA00860_00": [TrophyTitleInfo("NPWR07228_00", "Tales from the Borderlands")],
+    "CUSA07320_00": [TrophyTitleInfo("NPWR11556_00", "Horizon Zero Dawn")],
     "CUSA07719_00": [],
-    "CUSA07140_00": ["NPWR12456_00"],
-    "CUSA08487_00": ["NPWR13354_00"]
+    "CUSA07140_00": [TrophyTitleInfo("NPWR12456_00", "Dreamfall Chapters")],
+    "CUSA08487_00": [TrophyTitleInfo("NPWR13354_00", "Life is Strange: Before the Storm")],
+    "CUSA16596_00": [TrophyTitleInfo("NPWR19785_00", "Cyberpunk 2077")]
+}
+
+TITLE_TO_COMMUNICATION_ID = {
+    title: [tti.communication_id for tti in ttis]
+    for title, ttis in TITLE_TO_TROPHY_TITLE.items()
 }
 
 BACKEND_TROPHIES = {

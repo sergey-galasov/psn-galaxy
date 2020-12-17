@@ -93,9 +93,9 @@ class AuthenticatedHttpClient(HttpClient):
     def __init__(self, auth_lost_callback, store_credentials_callback):
         self._access_token = None
         self._refresh_token = None
+        self._getting_access_token = None
         self._auth_lost_callback = auth_lost_callback
         self._store_credentials_callback = store_credentials_callback
-        self.can_refresh = asyncio.Event()
         super().__init__()
 
     @property
@@ -145,34 +145,34 @@ class AuthenticatedHttpClient(HttpClient):
             if response:
                 response.close()
 
+    async def _get_access_token(self):
+        if self._getting_access_token is None or self._getting_access_token.done():
+            self._getting_access_token = asyncio.create_task(self.get_access_token(self._refresh_token))
+        return await self._getting_access_token
+
     async def authenticate(self, refresh_token):
         self._refresh_token = refresh_token
-        try:
-            self._access_token = await self.get_access_token(self._refresh_token)
-        finally:
-            self.can_refresh.set()
+        self._access_token = await self._get_access_token()
         if not self._access_token:
             raise UnknownBackendResponse("Empty access token")
 
     async def _refresh_access_token(self):
-        if not self.can_refresh.is_set():
-            await self.can_refresh.wait()
-            return
-        self.can_refresh.clear()
         try:
-            self._access_token = await self.get_access_token(self._refresh_token)
+            self._access_token = await self._get_access_token()
             if not self._access_token:
                 raise UnknownBackendResponse("Empty access token")
         except (BackendNotAvailable, BackendTimeout, BackendError, NetworkError):
             logging.warning("Failed to refresh token for independent reasons")
             raise
-        except Exception:
+        except InvalidCredentials:
             logging.exception("Failed to refresh token")
-            if self._auth_lost_callback:
-                self._auth_lost_callback()
+            self._auth_lost()
             raise AuthenticationRequired()
-        finally:
-            self.can_refresh.set()
+
+    async def _oauth_request(self, method, *args, **kwargs):
+        headers = kwargs.setdefault("headers", {})
+        headers["authorization"] = "Bearer " + self._access_token
+        return await super().request(method, *args, **kwargs)
 
     async def request(self, method, *args, **kwargs):
         if not self._access_token:
@@ -183,10 +183,7 @@ class AuthenticatedHttpClient(HttpClient):
             await self._refresh_access_token()
             return await self._oauth_request(method, *args, **kwargs)
 
-    async def _oauth_request(self, method, *args, **kwargs):
-        headers = kwargs.setdefault("headers", {})
-        headers["authorization"] = "Bearer " + self._access_token
-        return await super().request(method, *args, **kwargs)
-
     async def logout(self):
+        if not (self._getting_access_token is None or self._getting_access_token.done()):
+            await self._getting_access_token
         await self._session.close()

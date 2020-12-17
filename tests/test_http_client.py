@@ -15,7 +15,6 @@ async def test_multiple_refreshing():
             raise AuthenticationRequired()
         return 'ok'
     http_client = AuthenticatedHttpClient(Mock, Mock)
-    http_client.can_refresh.set()
     http_client._access_token = EXPIRED_TOKEN
     http_client.get_access_token = AsyncMockDelayed(return_value=REFRESHED_TOKEN)
     http_client._oauth_request = AsyncMock(side_effect=raise_on_old_token)
@@ -25,3 +24,20 @@ async def test_multiple_refreshing():
     )
     for i in responses:
         assert i == 'ok'
+
+
+@pytest.mark.asyncio
+async def test_logout_while_getting_access_token():
+    http_client = AuthenticatedHttpClient(Mock, Mock)
+    http_client.get_access_token = AsyncMock(return_value=Mock)
+    def cancel_getting_access_token():
+        http_client._getting_access_token.cancel()
+    http_client._session.close = AsyncMock(side_effect=cancel_getting_access_token)
+
+    await asyncio.gather(
+        http_client._refresh_access_token(),
+        http_client.logout()
+    )
+    assert http_client._getting_access_token.done() == True
+    http_client.get_access_token.assert_called_once()
+

@@ -1,6 +1,9 @@
 __version__ = "0.31"
 
 __changelog__ = {
+    "unreleased": """
+        - Fix showing correct PS Plus monthly games in Galaxy Subscription tab
+    """,
     "0.31": """
         - Fix losing authentication as side effect of shutdown while refreshing credentials
         - Add cache invalidation for title-communication_ids map every 7 days; fixes not showing updated games without reconnection

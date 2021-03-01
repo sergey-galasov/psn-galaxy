@@ -127,8 +127,7 @@ class PSNPlugin(Plugin):
         return [Subscription(subscription_name="PlayStation PLUS", end_time=None, owned=is_plus_active)]
 
     async def get_subscription_games(self, subscription_name: str, context: Any) -> AsyncGenerator[List[SubscriptionGame], None]:
-        account_info = await self._psn_client.get_account_info()
-        yield await self._psn_client.get_subscription_games(account_info)
+        yield await self._psn_client.get_subscription_games()
 
     async def get_owned_games(self):
         async def filter_and_patch_games(titles: List[Game]) -> List[Game]:

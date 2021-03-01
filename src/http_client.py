@@ -73,11 +73,12 @@ class HttpClient:
 
     async def get(self, url, *args, **kwargs):
         silent = kwargs.pop('silent', False)
+        get_json = kwargs.pop('get_json', True)
         response = await self.request("GET", *args, url=url, **kwargs)
         try:
             raw_response = '***' if silent else await response.text()
             logging.debug("Response for:\n{url}\n{data}".format(url=url, data=raw_response))
-            return await response.json()
+            return await response.json() if get_json else await response.text()
         except ValueError:
             logging.exception("Invalid response data for:\n{url}".format(url=url))
             raise UnknownBackendResponse()

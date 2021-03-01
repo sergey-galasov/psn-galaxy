@@ -8,7 +8,7 @@ from galaxy.api.errors import UnknownBackendResponse
 from galaxy.api.types import Achievement, Game, LicenseInfo, UserInfo, UserPresence, PresenceState, SubscriptionGame
 from galaxy.api.consts import LicenseType
 from http_client import paginate_url
-from psn_store import PSNFreePlusStore, AccountUserInfo
+from parsers import PSNGamesParser
 
 # game_id_list is limited to 5 IDs per request
 GAME_DETAILS_URL = "https://pl-tpy.np.community.playstation.net/trophy/v1/apps/trophyTitles" \
@@ -49,6 +49,8 @@ FRIENDS_WITH_PRESENCE_URL = "https://us-prof.np.community.playstation.net/userPr
     "?fields=accountId,onlineId,primaryOnlineStatus,presences(@titleInfo,lastOnlineDate)"
 
 ACCOUNTS_URL = "https://accounts.api.playstation.com/api/v1/accounts/{user_id}"
+
+PSN_PLUS_SUBSCRIPTIONS_URL = 'https://store.playstation.com/subscriptions'
 
 DEFAULT_LIMIT = 100
 MAX_TITLE_IDS_PER_REQUEST = 5
@@ -289,24 +291,5 @@ class PSNClient:
             "totalResults"
         )
 
-    async def get_account_info(self) -> AccountUserInfo:
-        def account_user_parser(data):
-            td = date_today() - datetime.fromisoformat(data['dateOfBirth'])
-            age = td.days // 365
-            return AccountUserInfo(data['region'], data['legalCountry'], data['language'], age)
-
-        return await self.fetch_data(account_user_parser, ACCOUNTS_URL.format(user_id='me'), silent=True)
-
-    async def get_subscription_games(self, account_info: AccountUserInfo) -> List[SubscriptionGame]:
-        def games_parser(data):
-            return [
-                SubscriptionGame(
-                    game_id=item['id'].split('-')[1],
-                    game_title=item['attributes']['name']
-                )
-                for item in data['included']
-                if item['type'] in ['game', 'game-related']
-            ]
-
-        store = PSNFreePlusStore(self._http_client, account_info)
-        return await self.fetch_data(games_parser, store.games_container_url)
+    async def get_subscription_games(self) -> List[SubscriptionGame]:
+        return await self.fetch_data(PSNGamesParser().parse, PSN_PLUS_SUBSCRIPTIONS_URL, get_json=False, silent=True)

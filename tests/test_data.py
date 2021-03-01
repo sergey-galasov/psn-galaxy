@@ -224,65 +224,143 @@ SUBSCRIPTION_GAMES = [
     SubscriptionGame(game_title='Firewall Zero Hour™', game_id='CUSA09831_00')
 ]
 
-BACKEND_STORE_FREEPSPLUS_CONTAINER = {
-    "data": {
-        "attributes": {
-            "attributes": {},
-            "id": "STORE-MSF77008-PSPLUSFREEGAMES",
-            "type": "container",
-            "relationships": {
-                "children": {
-                    "data": [
-                        {
-                            "id": "UP1001-CUSA03979_00-BIOSHOCKCOLLECTN",
-                            "type": "game"
-                        },
-                        {
-                            "id": "UP0006-CUSA09209_00-THESIMS400000000",
-                            "type": "game"
-                        },
-                        {
-                            "id": "UP9000-CUSA09831_00-FIREWALL00000000",
-                            "type": "game-related"
-                        }
-                    ]
-                },
-            }
-        },
-    },
-    "included": [
-        {
-            "attributes": {
-                "name": "BioShock: The Collection",
-                "platforms": ["PS4"]
-            },
-            "id": "UP1001-CUSA03979_00-BIOSHOCKCOLLECTN",
-            "type": "game"
-        },
-        {
-            "attributes": {
-                "name": "Full Game",
-                "platforms": [0, 10, 13],
-            },
-            "id": "UP0006-CUSA09209_00-THESIMS400000000-U002",
-            "type": "legacy-skus"
-        },
-        {
-            "attributes": {
-                "name": "The Sims™ 4",
-                "platforms": ["PS4"]
-            },
-            "id": "UP0006-CUSA09209_00-THESIMS400000000",
-            "type": "game"
-        },
-        {
-            "attributes": {
-                "name": "Firewall Zero Hour™",
-                "platforms": ["PS4"],
-                "ps-vr-compatibility": "required",
-            },
-            "id": "UP9000-CUSA09831_00-FIREWALL00000000-U002",
-            "type": "game-related"
-        },
-    ]
-}
+PSN_PLUS_MONTHLY_FREE_GAMES_HTML = """
+<div class="ems-sdk-strand-paginator">
+    <div class="ems-sdk-strand-paginator__body">
+         <ul class="ems-sdk-product-tile-list psw-grid-x psw-grid-margin-x psw-tablet-l-up-6 psw-tablet-p-up-3 psw-mobile-p-up-2" data-qa="ems-sdk-product-tile-list" style="transform:translateX(0%);flex-wrap:nowrap">
+            <li class="psw-cell">
+               <div class="ems-sdk-product-tile" data-qa="ems-sdk-product-tile" data-qa-index="0">
+                  <a class="ems-sdk-product-tile-link" href="/en-us/product/UP4040-CUSA03979_00-CONTROLUEBUNDLE0" data-track-content="web:store:product-tile" data-track-click="web:store:product-tile" data-telemetry-meta="{&quot;id&quot;:&quot;UP4040-CUSA03979_00-CONTROLUEBUNDLE0&quot;,&quot;index&quot;:0,&quot;name&quot;:&quot;BioShock: The Collection&quot;,&quot;titleId&quot;:&quot;CUSA03979_00&quot;}" title="BioShock: The Collection">
+                     <div class="ems-sdk-product-tile-image" data-qa="ems-sdk-product-tile-image">
+                        <div class="ems-sdk-product-tile-image__container">
+                           <span data-qa="" class="psw-illustration psw-illustration--default-product-image default-product-img">
+                              <svg>
+                                 <title></title>
+                                 <use href="#ps-illustration:default-product-image"></use>
+                              </svg>
+                           </span>
+                           <span data-qa="ems-sdk-product-tile-image-img" style="width:100%;min-width:100%" class="psw-media-frame psw-fill-x psw-image psw-aspect-1-1">
+                              <img aria-hidden="true" loading="lazy" data-qa="ems-sdk-product-tile-image-img#preview" alt="" class="psw-blur psw-top-left psw-l-fit-cover" src="https://image.api.playstation.com/vulcan/ap/rnd/202008/2111/hvVTsd8akckaGtN2eZ3yIuwc.png?w=54&amp;thumb=true"/>
+                              <noscript class="psw-layer"><img class="psw-top-left psw-l-fit-cover" loading="lazy" data-qa="ems-sdk-product-tile-image-img#image-no-js" alt="" src="https://image.api.playstation.com/vulcan/ap/rnd/202008/2111/hvVTsd8akckaGtN2eZ3yIuwc.png"/></noscript>
+                           </span>
+                        </div>
+                        <div class="ems-sdk-product-tile-image__badge-container psw-m-r-3xs"><span class="psw-p-x-3xs ems-sdk-product-tile-image__badge" data-qa="ems-sdk-product-tile-image-badge">PS4</span></div>
+                     </div>
+                     <section class="ems-sdk-product-tile__details" data-qa="ems-sdk-product-tile-details"><span class="psw-body-2 psw-truncate-text-2 psw-p-t-2xs" data-qa="ems-sdk-product-tile-name">BioShock: The Collection</span></section>
+                  </a>
+               </div>
+            </li>
+            <li class="psw-cell">
+               <div class="ems-sdk-product-tile" data-qa="ems-sdk-product-tile" data-qa-index="2">
+                  <a class="ems-sdk-product-tile-link" href="/en-us/product/UP9000-CUSA09209_00-DALLSTARSPLUS001" data-track-content="web:store:product-tile" data-track-click="web:store:product-tile" data-telemetry-meta="{&quot;id&quot;:&quot;UP9000-CUSA09209_00-DALLSTARSPLUS001&quot;,&quot;index&quot;:2,&quot;name&quot;:&quot;The Sims™ 4&quot;,&quot;titleId&quot;:&quot;CUSA09209_00&quot;}" title="The Sims™ 4">
+                     <div class="ems-sdk-product-tile-image" data-qa="ems-sdk-product-tile-image">
+                        <div class="ems-sdk-product-tile-image__container">
+                           <span data-qa="" class="psw-illustration psw-illustration--default-product-image default-product-img">
+                              <svg>
+                                 <title></title>
+                                 <use href="#ps-illustration:default-product-image"></use>
+                              </svg>
+                           </span>
+                           <span data-qa="ems-sdk-product-tile-image-img" style="width:100%;min-width:100%" class="psw-media-frame psw-fill-x psw-image psw-aspect-1-1">
+                              <img aria-hidden="true" loading="lazy" data-qa="ems-sdk-product-tile-image-img#preview" alt="" class="psw-blur psw-top-left psw-l-fit-cover" src="https://image.api.playstation.com/vulcan/img/rnd/202010/0513/MYXPEsm7SVKszWWAHhcNfta6.png?w=54&amp;thumb=true"/>
+                              <noscript class="psw-layer"><img class="psw-top-left psw-l-fit-cover" loading="lazy" data-qa="ems-sdk-product-tile-image-img#image-no-js" alt="" src="https://image.api.playstation.com/vulcan/img/rnd/202010/0513/MYXPEsm7SVKszWWAHhcNfta6.png"/></noscript>
+                           </span>
+                        </div>
+                        <div class="ems-sdk-product-tile-image__badge-container psw-m-r-3xs"><span class="psw-p-x-3xs ems-sdk-product-tile-image__badge" data-qa="ems-sdk-product-tile-image-badge">PS5</span></div>
+                     </div>
+                     <section class="ems-sdk-product-tile__details" data-qa="ems-sdk-product-tile-details"><span class="psw-body-2 psw-truncate-text-2 psw-p-t-2xs" data-qa="ems-sdk-product-tile-name">The Sims™ 4</span></section>
+                  </a>
+               </div>
+            </li>
+            <li class="psw-cell">
+               <div class="ems-sdk-product-tile" data-qa="ems-sdk-product-tile" data-qa-index="3">
+                  <a class="ems-sdk-product-tile-link" href="/en-us/product/UP9000-CUSA09831_00-CONCRETEGENIE000" data-track-content="web:store:product-tile" data-track-click="web:store:product-tile" data-telemetry-meta="{&quot;id&quot;:&quot;UP9000-CUSA09831_00-CONCRETEGENIE000&quot;,&quot;index&quot;:3,&quot;name&quot;:&quot;Firewall Zero Hour™&quot;,&quot;titleId&quot;:&quot;CUSA09831_00&quot;}" title="Firewall Zero Hour™">
+                     <div class="ems-sdk-product-tile-image" data-qa="ems-sdk-product-tile-image">
+                        <div class="ems-sdk-product-tile-image__container">
+                           <span data-qa="" class="psw-illustration psw-illustration--default-product-image default-product-img">
+                              <svg>
+                                 <title></title>
+                                 <use href="#ps-illustration:default-product-image"></use>
+                              </svg>
+                           </span>
+                           <span data-qa="ems-sdk-product-tile-image-img" style="width:100%;min-width:100%" class="psw-media-frame psw-fill-x psw-image psw-aspect-1-1">
+                              <img aria-hidden="true" loading="lazy" data-qa="ems-sdk-product-tile-image-img#preview" alt="" class="psw-blur psw-top-left psw-l-fit-cover" src="https://image.api.playstation.com/vulcan/img/rnd/202011/0923/lbjNLN1pA9vZiHjECrt3Gnc7.png?w=54&amp;thumb=true"/>
+                              <noscript class="psw-layer"><img class="psw-top-left psw-l-fit-cover" loading="lazy" data-qa="ems-sdk-product-tile-image-img#image-no-js" alt="" src="https://image.api.playstation.com/vulcan/img/rnd/202011/0923/lbjNLN1pA9vZiHjECrt3Gnc7.png"/></noscript>
+                           </span>
+                        </div>
+                        <div class="ems-sdk-product-tile-image__badge-container psw-m-r-3xs"><span class="psw-p-x-3xs ems-sdk-product-tile-image__badge" data-qa="ems-sdk-product-tile-image-badge">PS4</span></div>
+                     </div>
+                     <section class="ems-sdk-product-tile__details" data-qa="ems-sdk-product-tile-details"><span class="psw-body-2 psw-truncate-text-2 psw-p-t-2xs" data-qa="ems-sdk-product-tile-name">Firewall Zero Hour™</span></section>
+                  </a>
+               </div>
+            </li>
+            <li class="psw-cell">
+               <div class="ems-sdk-product-tile" data-qa="ems-sdk-product-tile" data-qa-index="4">
+                  <a class="ems-sdk-product-tile-link" href="https://www.playstation.com/explore/playstation-plus/?smcid=webstore%3Aen-us%3APRODUCT%3AIP9101-NPIA90005_01-1YEARPACKAGE0000" data-track-content="web:store:product-tile" data-track-click="web:store:product-tile" data-telemetry-meta="{&quot;id&quot;:&quot;IP9101-NPIA90005_01-1YEARPACKAGE0000&quot;,&quot;index&quot;:4,&quot;name&quot;:&quot;PlayStation Plus 12-Month Subscription&quot;,&quot;titleId&quot;:&quot;NPIA90005_01&quot;}" title="PlayStation Plus 12-Month Subscription">
+                     <div class="ems-sdk-product-tile-image" data-qa="ems-sdk-product-tile-image">
+                        <div class="ems-sdk-product-tile-image__container">
+                           <span data-qa="" class="psw-illustration psw-illustration--default-product-image default-product-img">
+                              <svg>
+                                 <title></title>
+                                 <use href="#ps-illustration:default-product-image"></use>
+                              </svg>
+                           </span>
+                           <span data-qa="ems-sdk-product-tile-image-img" style="width:100%;min-width:100%" class="psw-media-frame psw-fill-x psw-image psw-aspect-1-1">
+                              <img aria-hidden="true" loading="lazy" data-qa="ems-sdk-product-tile-image-img#preview" alt="" class="psw-blur psw-top-left psw-l-fit-cover" src="https://image.api.playstation.com/vulcan/img/cfn/11307_n5ZkkEw-u6TMBK-91JA4Xd09lfjMjBSaPEnIAdVNjcY7gzUw2r3hj4Zw7HUFcQx1WOFQeFPzUYlMCvn8h5TwUPJFSI.png?w=54&amp;thumb=true"/>
+                              <noscript class="psw-layer"><img class="psw-top-left psw-l-fit-cover" loading="lazy" data-qa="ems-sdk-product-tile-image-img#image-no-js" alt="" src="https://image.api.playstation.com/vulcan/img/cfn/11307_n5ZkkEw-u6TMBK-91JA4Xd09lfjMjBSaPEnIAdVNjcY7gzUw2r3hj4Zw7HUFcQx1WOFQeFPzUYlMCvn8h5TwUPJFSI.png"/></noscript>
+                           </span>
+                        </div>
+                        <div class="ems-sdk-product-tile-image__badge-container psw-m-r-3xs"></div>
+                     </div>
+                     <section class="ems-sdk-product-tile__details" data-qa="ems-sdk-product-tile-details"><span class="psw-body-2 psw-truncate-text-2 psw-p-t-2xs" data-qa="ems-sdk-product-tile-name">PlayStation Plus 12-Month Subscription</span></section>
+                  </a>
+               </div>
+            </li>
+            <li class="psw-cell">
+               <div class="ems-sdk-product-tile" data-qa="ems-sdk-product-tile" data-qa-index="5">
+                  <a class="ems-sdk-product-tile-link" href="https://www.playstation.com/explore/playstation-plus/?smcid=webstore%3Aen-us%3APRODUCT%3AIP9101-NPIA90005_01-3MONTHPACKAGE000" data-track-content="web:store:product-tile" data-track-click="web:store:product-tile" data-telemetry-meta="{&quot;id&quot;:&quot;IP9101-NPIA90005_01-3MONTHPACKAGE000&quot;,&quot;index&quot;:5,&quot;name&quot;:&quot;PlayStation Plus 3-Month Subscription&quot;,&quot;titleId&quot;:&quot;NPIA90005_01&quot;}" title="PlayStation Plus 3-Month Subscription">
+                     <div class="ems-sdk-product-tile-image" data-qa="ems-sdk-product-tile-image">
+                        <div class="ems-sdk-product-tile-image__container">
+                           <span data-qa="" class="psw-illustration psw-illustration--default-product-image default-product-img">
+                              <svg>
+                                 <title></title>
+                                 <use href="#ps-illustration:default-product-image"></use>
+                              </svg>
+                           </span>
+                           <span data-qa="ems-sdk-product-tile-image-img" style="width:100%;min-width:100%" class="psw-media-frame psw-fill-x psw-image psw-aspect-1-1">
+                              <img aria-hidden="true" loading="lazy" data-qa="ems-sdk-product-tile-image-img#preview" alt="" class="psw-blur psw-top-left psw-l-fit-cover" src="https://image.api.playstation.com/vulcan/img/cfn/11307c-OgyoHp2L_r8dpNZet4gdeCvRTletsGVxaxW2ixVkInZQEZbCGbn14PkuI3_cTWpv-1HIoqGvOiaFNCQzCHZYYr46N.png?w=54&amp;thumb=true"/>
+                              <noscript class="psw-layer"><img class="psw-top-left psw-l-fit-cover" loading="lazy" data-qa="ems-sdk-product-tile-image-img#image-no-js" alt="" src="https://image.api.playstation.com/vulcan/img/cfn/11307c-OgyoHp2L_r8dpNZet4gdeCvRTletsGVxaxW2ixVkInZQEZbCGbn14PkuI3_cTWpv-1HIoqGvOiaFNCQzCHZYYr46N.png"/></noscript>
+                           </span>
+                        </div>
+                        <div class="ems-sdk-product-tile-image__badge-container psw-m-r-3xs"></div>
+                     </div>
+                     <section class="ems-sdk-product-tile__details" data-qa="ems-sdk-product-tile-details"><span class="psw-body-2 psw-truncate-text-2 psw-p-t-2xs" data-qa="ems-sdk-product-tile-name">PlayStation Plus 3-Month Subscription</span></section>
+                  </a>
+               </div>
+            </li>
+            <li class="psw-cell">
+               <div class="ems-sdk-product-tile" data-qa="ems-sdk-product-tile" data-qa-index="6">
+                  <a class="ems-sdk-product-tile-link" href="https://www.playstation.com/explore/playstation-plus/?smcid=webstore%3Aen-us%3APRODUCT%3AIP9101-NPIA90005_01-PLUS1MONTHPACKAG" data-track-content="web:store:product-tile" data-track-click="web:store:product-tile" data-telemetry-meta="{&quot;id&quot;:&quot;IP9101-NPIA90005_01-PLUS1MONTHPACKAG&quot;,&quot;index&quot;:6,&quot;name&quot;:&quot;PlayStation Plus 1-Month Subscription&quot;,&quot;titleId&quot;:&quot;NPIA90005_01&quot;}" title="PlayStation Plus 1-Month Subscription">
+                     <div class="ems-sdk-product-tile-image" data-qa="ems-sdk-product-tile-image">
+                        <div class="ems-sdk-product-tile-image__container">
+                           <span data-qa="" class="psw-illustration psw-illustration--default-product-image default-product-img">
+                              <svg>
+                                 <title></title>
+                                 <use href="#ps-illustration:default-product-image"></use>
+                              </svg>
+                           </span>
+                           <span data-qa="ems-sdk-product-tile-image-img" style="width:100%;min-width:100%" class="psw-media-frame psw-fill-x psw-image psw-aspect-1-1">
+                              <img aria-hidden="true" loading="lazy" data-qa="ems-sdk-product-tile-image-img#preview" alt="" class="psw-blur psw-top-left psw-l-fit-cover" src="https://image.api.playstation.com/vulcan/img/cfn/11307ymhpS0kVde1dioghwldgk6oi0CCjmt-jxvL_ilCipOgp0dwNtdJU0tPXlZta0_AQuJNm0UUfduYd4FJcWzj_UkI8DvH.png?w=54&amp;thumb=true"/>
+                              <noscript class="psw-layer"><img class="psw-top-left psw-l-fit-cover" loading="lazy" data-qa="ems-sdk-product-tile-image-img#image-no-js" alt="" src="https://image.api.playstation.com/vulcan/img/cfn/11307ymhpS0kVde1dioghwldgk6oi0CCjmt-jxvL_ilCipOgp0dwNtdJU0tPXlZta0_AQuJNm0UUfduYd4FJcWzj_UkI8DvH.png"/></noscript>
+                           </span>
+                        </div>
+                        <div class="ems-sdk-product-tile-image__badge-container psw-m-r-3xs"></div>
+                     </div>
+                     <section class="ems-sdk-product-tile__details" data-qa="ems-sdk-product-tile-details"><span class="psw-body-2 psw-truncate-text-2 psw-p-t-2xs" data-qa="ems-sdk-product-tile-name">PlayStation Plus 1-Month Subscription</span></section>
+                  </a>
+               </div>
+            </li>
+         </ul>
+    </div>
+</div>
+"""

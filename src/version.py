@@ -1,7 +1,7 @@
-__version__ = "0.31"
+__version__ = "0.32"
 
 __changelog__ = {
-    "unreleased": """
+    "0.32": """
         - Fix showing correct PS Plus monthly games in Galaxy Subscription tab
     """,
     "0.31": """

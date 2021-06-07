@@ -2,7 +2,7 @@ import pytest
 from galaxy.api.errors import UnknownBackendResponse
 from galaxy.api.types import SubscriptionGame
 
-from src.parsers import PSNGamesParser
+from parsers import PSNGamesParser
 
 
 @pytest.mark.asyncio

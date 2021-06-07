@@ -7,7 +7,8 @@ import sys
 from collections import defaultdict
 
 from galaxy.api.plugin import Plugin, create_and_run_plugin
-from galaxy.api.types import Authentication, Game, NextStep, Achievement, UserPresence, PresenceState, SubscriptionGame, Subscription
+from galaxy.api.types import Authentication, Game, NextStep, Achievement, UserPresence, PresenceState, SubscriptionGame, \
+    Subscription, GameTime
 from galaxy.api.consts import Platform
 from galaxy.api.errors import ApplicationError, InvalidCredentials, UnknownError
 from galaxy.api.jsonrpc import InvalidParams
@@ -17,7 +18,7 @@ from cache import Cache
 from http_client import AuthenticatedHttpClient
 from psn_client import (
     CommunicationId, TitleId, TrophyTitles, UnixTimestamp, TrophyTitleInfo,
-    PSNClient, MAX_TITLE_IDS_PER_REQUEST
+    PSNClient, MAX_TITLE_IDS_PER_REQUEST, parse_timestamp, parse_play_duration
 )
 from typing import Dict, List, Set, Iterable, Tuple, Optional, Any, AsyncGenerator
 from version import __version__
@@ -41,6 +42,9 @@ TROPHIES_CACHE_KEY = "trophies"
 TROPHY_TITLE_INFO_CACHE_KEY = "trophy_title_info"
 COMMUNICATION_IDS_CACHE_KEY = "communication_ids"  # deprecated
 TROPHY_TITLE_INFO_INVALIDATION_PERIOD_SEC = 3600 * 24 * 7
+
+
+logger = logging.getLogger(__name__)
 
 
 class PSNPlugin(Plugin):
@@ -257,6 +261,19 @@ class PSNPlugin(Plugin):
         except Exception:
             logging.exception("Unhandled exception. Please report it to the plugin developers")
             handle_error(UnknownError())
+
+    async def prepare_game_times_context(self, game_ids: List[str]) -> Any:
+        return {game['titleId']: game for game in await self._psn_client.async_get_played_games()}
+
+    async def get_game_time(self, game_id: str, context: Any) -> GameTime:
+        time_played, last_played_game = None, None
+        try:
+            game = context[game_id]
+            last_played_game = parse_timestamp(game['lastPlayedDateTime'])
+            time_played = parse_play_duration(game['playDuration'])
+        except KeyError as e:
+            logger.debug(e)
+        return GameTime(game_id, time_played, last_played_game)
 
     async def prepare_user_presence_context(self, user_ids: List[str]) -> Any:
         return await self._psn_client.async_get_friends_presences()

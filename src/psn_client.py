@@ -1,14 +1,17 @@
 import asyncio
 import logging
-from datetime import datetime, timezone
+import re
+import math
+from datetime import datetime, timezone, timedelta
 from functools import partial
-from typing import Dict, List, NewType, Tuple, NamedTuple
+from typing import Dict, List, NewType, Optional, Tuple, NamedTuple
 
 from galaxy.api.errors import UnknownBackendResponse
 from galaxy.api.types import Achievement, Game, LicenseInfo, UserInfo, UserPresence, PresenceState, SubscriptionGame
 from galaxy.api.consts import LicenseType
 from http_client import paginate_url
 from parsers import PSNGamesParser
+
 
 # game_id_list is limited to 5 IDs per request
 GAME_DETAILS_URL = "https://pl-tpy.np.community.playstation.net/trophy/v1/apps/trophyTitles" \
@@ -17,6 +20,14 @@ GAME_DETAILS_URL = "https://pl-tpy.np.community.playstation.net/trophy/v1/apps/t
     "&npLanguage=en"
 
 GAME_LIST_URL = "https://gamelist.api.playstation.com/v1/users/{user_id}/titles" \
+    "?type=owned,played" \
+    "&app=richProfile" \
+    "&sort=-lastPlayedDate" \
+    "&iw=240"\
+    "&ih=240"\
+    "&fields=@default"
+
+PLAYED_GAME_LIST_URL = "https://gamelist.api.playstation.com/v2/users/{user_id}/titles" \
     "?type=owned,played" \
     "&app=richProfile" \
     "&sort=-lastPlayedDate" \
@@ -68,10 +79,31 @@ class TrophyTitleInfo(NamedTuple):
 
 
 def parse_timestamp(earned_date) -> UnixTimestamp:
-    dt = datetime.strptime(earned_date, "%Y-%m-%dT%H:%M:%SZ")
+    date_format = "%Y-%m-%dT%H:%M:%S.%fZ" if '.' in earned_date else "%Y-%m-%dT%H:%M:%SZ"
+    dt = datetime.strptime(earned_date, date_format)
     dt = datetime.combine(dt.date(), dt.time(), timezone.utc)
     return UnixTimestamp(int(dt.timestamp()))
 
+
+def parse_play_duration(duration: Optional[str]) -> int:
+    """Returns time of played game in minutes from PSN API format `PT{HOURS}H{MINUTES}M{SECONDS}S`. Example: `PT2H33M3S`"""
+    if not duration:
+        raise UnknownBackendResponse(f'nullable playtime duration: {type(duration)}')
+    try:
+        result = re.match(
+            r'(?:PT)?'
+            r'(?:(?P<hours>\d*)H)?'
+            r'(?:(?P<minutes>\d*)M)?'
+            r'(?:(?P<seconds>\d*)S)?$',
+            duration
+        )
+        mapped_result = {k: float(v) for k, v in result.groupdict(0).items()}
+        time = timedelta(**mapped_result)
+    except (ValueError, AttributeError, TypeError):
+        raise UnknownBackendResponse(f'Unmatchable gametime: {duration}')
+        
+    total_minutes = math.ceil(time.seconds / 60 + time.days * 24 * 60)
+    return total_minutes
 
 def date_today():
     return datetime.today()
@@ -293,3 +325,9 @@ class PSNClient:
 
     async def get_subscription_games(self) -> List[SubscriptionGame]:
         return await self.fetch_data(PSNGamesParser().parse, PSN_PLUS_SUBSCRIPTIONS_URL, get_json=False, silent=True)
+
+    async def async_get_played_games(self):
+        def get_games_parser(response):
+            return response.get('titles', [])
+
+        return await self.fetch_paginated_data(get_games_parser, PLAYED_GAME_LIST_URL.format(user_id="me"), 'totalItemCount')

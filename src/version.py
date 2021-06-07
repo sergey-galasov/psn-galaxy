@@ -1,6 +1,9 @@
-__version__ = "0.32"
+__version__ = "0.33"
 
 __changelog__ = {
+    "0.33": """
+        - Add game time feature 
+    """,
     "0.32": """
         - Fix showing correct PS Plus monthly games in Galaxy Subscription tab
     """,

@@ -7,17 +7,17 @@ from parsers import PSNGamesParser
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("http_response, expected_result", [
-    pytest.param("<div class=ems-sdk-strand-paginator><a></a></div>", [], id="'a' tag without 'ems-sdk-strand-paginator' class"),
-    pytest.param("<div class=ems-sdk-strand-paginator><a class=ems-sdk-product-tile-link></a></div>", [], id="'a' tag without 'data-telemetry-meta' attr"),
+    pytest.param("<ul class=psw-strand-scroller><a></a></div>", [], id="'a' tag without 'psw-strand-scroller' class"),
+    pytest.param("<ul class=psw-strand-scroller><a class=ems-sdk-product-tile-link></a></div>", [], id="'a' tag without 'data-telemetry-meta' attr"),
     pytest.param(
-        '<div class=ems-sdk-strand-paginator>'
+        '<ul class=psw-strand-scroller>'
             '<a class=ems-sdk-product-tile-link data-telemetry-meta=""></a>'
         '</div>',
         [],
         id="empty 'data-telemetry-meta' attr"
     ),
     pytest.param(
-        '<div class=ems-sdk-strand-paginator>'
+        '<ul class=psw-strand-scroller>'
             "<a class=ems-sdk-product-tile-link data-telemetry-meta="
             "'{\"id\":\"SOME_ID\",\"index\":3,\"name\":\"Firewall Zero Hour™\",\"titleId\":\"CUSA09831_00\"}'>"
             "</a>"
@@ -26,7 +26,7 @@ from parsers import PSNGamesParser
         id="One correct game"
     ),
     pytest.param(
-        '<div class=ems-sdk-strand-paginator>'
+        '<ul class=psw-strand-scroller>'
             "<a class=ems-sdk-product-tile-link data-telemetry-meta="
             "'{\"id\":\"SOME_ID\",\"index\":3,\"titleId\":\"CUSA09831_00\"}'>"
             "</a>"
@@ -35,7 +35,7 @@ from parsers import PSNGamesParser
         id="Incorrect game - without name"
     ),
     pytest.param(
-        '<div class=ems-sdk-strand-paginator>'
+        '<ul class=psw-strand-scroller>'
             "<a class=ems-sdk-product-tile-link data-telemetry-meta="
             "'{\"id\":\"SOME_ID\",\"index\":3,\"name\":\"Firewall Zero Hour™\"}'>"
             "</a>"
@@ -44,7 +44,7 @@ from parsers import PSNGamesParser
         id="Incorrect game - without titleID"
     ),
     pytest.param(
-        '<div class=ems-sdk-strand-paginator>'
+        '<ul class=psw-strand-scroller>'
             "<a class=ems-sdk-product-tile-link data-telemetry-meta="
             "'{\"id\":\"SOME_ID\",\"index\":3,\"name\":\"Firewall Zero Hour™\",\"titleId\":\"CUSA09831_00\"}'>"
             "</a>"
@@ -57,7 +57,7 @@ from parsers import PSNGamesParser
         id="Two correct games"
     ),
     pytest.param(
-        '<div class=ems-sdk-strand-paginator>'
+        '<ul class=psw-strand-scroller>'
             "<a class=ems-sdk-product-tile-link data-telemetry-meta="
             "'{\"id\":\"SOME_ID\",\"index\":3,\"name\":\"Firewall Zero Hour™\",\"titleId\":\"CUSA09831_00\"}'>"
             "</a>"
@@ -69,7 +69,7 @@ from parsers import PSNGamesParser
         id="Two games - one incorrect, without name"
     ),
    pytest.param(
-        '<div class=ems-sdk-strand-paginator>'
+        '<ul class=psw-strand-scroller>'
             "<a class=\"ems-sdk-product-tile-link\" href=\"/ja-jp/product/JP0507-PPSA01954_00-CONTROLUEPS50001\" "
             "data-track-content=\"web:store:product-tile\" data-track-click=\"web:store:product-tile\" "
             "data-telemetry-meta=\"{&quot;id&quot;:&quot;JP0507-PPSA01954_00-CONTROLUEPS50001&quot;,&quot;index&quot;:1,&quot;name&quot;:&quot;『CONTROL』アルティメットエディション&quot;,&quot;price&quot;:&quot;定額サービス対象&quot;,&quot;titleId&quot;:&quot;PPSA01954_00&quot;}\" "
@@ -88,8 +88,8 @@ async def test_parse_subscription_games(http_response, expected_result):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("http_response", [
     pytest.param(""),
-    pytest.param("ems-sdk-strand-paginator-WRONG_TAG"),
-    pytest.param("<div class=ems-sdk-strand-paginator-WRONG_TAG></div>"),
+    pytest.param("psw-strand-scroller-WRONG_TAG"),
+    pytest.param("<ul class=psw-strand-scroller-WRONG_TAG></div>"),
     ])
 async def test_parse_subscription_games_raise_lack_paginator_tag(http_response):
     with pytest.raises(UnknownBackendResponse):

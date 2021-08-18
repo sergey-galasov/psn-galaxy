@@ -1,6 +1,12 @@
-__version__ = "0.33"
+__version__ = "0.34"
 
 __changelog__ = {
+    "0.34": """
+        - Add refreshing cookies by doing request to playstation login website
+        - Fix logging by changing oauth which is the same as in web client for playstation.com
+        - Add support for PS5 games
+        - Remove no longer available features: achievements, friends, friends presence, game times  
+    """,
     "0.33": """
         - Add game time feature 
     """,

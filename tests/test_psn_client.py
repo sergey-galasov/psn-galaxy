@@ -1,7 +1,7 @@
 import math
 import pytest
-from galaxy.api.errors import TooManyRequests, UnknownBackendResponse
-from tests.async_mock import AsyncMock
+from galaxy.api.errors import UnknownBackendResponse
+
 
 TROPHIES = [
     {"id": "NPWR15900_00", "name": "Persona 5: Dancing in Starlight"},
@@ -141,7 +141,6 @@ def assert_all_games_fetched(games):
 async def test_simple_fetch(
     http_get,
     authenticated_psn_client,
-    access_token
 ):
     http_get.side_effect = create_backend_response_generator()()
     assert_all_games_fetched(await authenticated_psn_client.fetch_data(parser, TROPHIES_PAGE))
@@ -152,7 +151,6 @@ async def test_simple_fetch(
 async def test_pagination(
     http_get,
     authenticated_psn_client,
-    access_token
 ):
     limit = 13
 
@@ -167,7 +165,6 @@ async def test_pagination(
 async def test_single_fetch(
     http_get,
     authenticated_psn_client,
-    access_token
 ):
     http_get.side_effect = create_backend_response_generator()()
     assert_all_games_fetched(await authenticated_psn_client.fetch_paginated_data(
@@ -179,7 +176,6 @@ async def test_single_fetch(
 async def test_less_than_expected(
     http_get,
     authenticated_psn_client,
-    access_token
 ):
     http_get.side_effect = create_backend_response_generator()()
     assert_all_games_fetched(await authenticated_psn_client.fetch_paginated_data(
@@ -191,7 +187,6 @@ async def test_less_than_expected(
 async def test_no_total_results(
     http_get,
     authenticated_psn_client,
-    access_token
 ):
     response = create_backend_response_all_trophies()
     del response["totalResults"]
@@ -205,7 +200,6 @@ async def test_no_total_results(
 async def test_invalid_total_results(
     http_get,
     authenticated_psn_client,
-    access_token
 ):
     response = create_backend_response_all_trophies()
     response["totalResults"] = "bad_number"
@@ -214,20 +208,3 @@ async def test_invalid_total_results(
     with pytest.raises(UnknownBackendResponse):
         await authenticated_psn_client.fetch_paginated_data(parser, TROPHIES_PAGE, "totalResults", len(TROPHIES))
     http_get.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_request_limit(
-    mocker,
-    authenticated_psn_client
-):
-    http_request = mocker.patch(
-        "plugin.AuthenticatedHttpClient.request",
-        new_callable=AsyncMock,
-        side_effect=TooManyRequests()
-    )
-
-    with pytest.raises(TooManyRequests):
-        await authenticated_psn_client.get_trophy_titles()
-
-    http_request.assert_called_once()

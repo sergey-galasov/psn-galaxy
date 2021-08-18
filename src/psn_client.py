@@ -1,81 +1,38 @@
 import asyncio
 import logging
-import re
 import math
+import re
 from datetime import datetime, timezone, timedelta
 from functools import partial
-from typing import Dict, List, NewType, Optional, Tuple, NamedTuple
+from typing import List, NewType, Optional
 
 from galaxy.api.errors import UnknownBackendResponse
-from galaxy.api.types import Achievement, Game, LicenseInfo, UserInfo, UserPresence, PresenceState, SubscriptionGame
-from galaxy.api.consts import LicenseType
+from galaxy.api.types import SubscriptionGame
+
 from http_client import paginate_url
 from parsers import PSNGamesParser
 
+GAME_LIST_URL = "https://web.np.playstation.com/api/graphql/v1/op" \
+                "?operationName=getPurchasedGameList" \
+                '&variables={"isActive":true,"platform":["ps3","ps4","ps5"],"subscriptionService":"NONE"}' \
+                '&extensions={"persistedQuery":{"version":1,"sha256Hash":"2c045408b0a4d0264bb5a3edfed4efd49fb4749cf8d216be9043768adff905e2"}}'
 
-# game_id_list is limited to 5 IDs per request
-GAME_DETAILS_URL = "https://pl-tpy.np.community.playstation.net/trophy/v1/apps/trophyTitles" \
-    "?npTitleIds={game_id_list}" \
-    "&fields=@default" \
-    "&npLanguage=en"
+PLAYED_GAME_LIST_URL = "https://web.np.playstation.com/api/graphql/v1/op" \
+                       "?operationName=getUserGameList" \
+                       '&variables={"limit":50,"categories":"ps3_game,ps4_game,ps5_native_game"}' \
+                       '&extensions={"persistedQuery":{"version":1,"sha256Hash":"e780a6d8b921ef0c59ec01ea5c5255671272ca0d819edb61320914cf7a78b3ae"}}'
 
-GAME_LIST_URL = "https://gamelist.api.playstation.com/v1/users/{user_id}/titles" \
-    "?type=owned,played" \
-    "&app=richProfile" \
-    "&sort=-lastPlayedDate" \
-    "&iw=240"\
-    "&ih=240"\
-    "&fields=@default"
-
-PLAYED_GAME_LIST_URL = "https://gamelist.api.playstation.com/v2/users/{user_id}/titles" \
-    "?type=owned,played" \
-    "&app=richProfile" \
-    "&sort=-lastPlayedDate" \
-    "&iw=240"\
-    "&ih=240"\
-    "&fields=@default"
-
-TROPHY_TITLES_URL = "https://pl-tpy.np.community.playstation.net/trophy/v1/trophyTitles" \
-    "?fields=@default" \
-    "&platform=PS4" \
-    "&npLanguage=en"
-
-EARNED_TROPHIES_PAGE = "https://pl-tpy.np.community.playstation.net/trophy/v1/" \
-    "trophyTitles/{communication_id}/trophyGroups/{trophy_group_id}/trophies?" \
-    "fields=@default,trophyRare,trophyEarnedRate,trophySmallIconUrl,groupId" \
-    "&visibleType=1" \
-    "&npLanguage=en"
-
-USER_INFO_URL = "https://pl-prof.np.community.playstation.net/userProfile/v1/users/{user_id}/profile2" \
-    "?fields=accountId,onlineId"
-
-USER_INFO_PSPLUS_URL = "https://pl-prof.np.community.playstation.net/userProfile/v1/users/{user_id}/profile2" \
-    "?fields=plus"
-
-DEFAULT_AVATAR_SIZE = "l"
-FRIENDS_URL = "https://us-prof.np.community.playstation.net/userProfile/v1/users/{user_id}/friends/profiles2" \
-    "?fields=accountId,onlineId,avatarUrls&avatarSizes={avatar_size_list}"
-
-FRIENDS_WITH_PRESENCE_URL = "https://us-prof.np.community.playstation.net/userProfile/v1/users/{user_id}/friends/profiles2" \
-    "?fields=accountId,onlineId,primaryOnlineStatus,presences(@titleInfo,lastOnlineDate)"
-
-ACCOUNTS_URL = "https://accounts.api.playstation.com/api/v1/accounts/{user_id}"
+USER_INFO_URL = "https://web.np.playstation.com/api/graphql/v1/op" \
+                "?operationName=getProfileOracle" \
+                "&variables={}" \
+                '&extensions={"persistedQuery":{"version":1,"sha256Hash":"c17b8b45ac988fec34e6a833f7a788edf7857c900fc3dc116585ced48577fb05"}}'
 
 PSN_PLUS_SUBSCRIPTIONS_URL = 'https://store.playstation.com/subscriptions'
 
 DEFAULT_LIMIT = 100
-MAX_TITLE_IDS_PER_REQUEST = 5
 
-CommunicationId = NewType("CommunicationId", str)
 TitleId = NewType("TitleId", str)
 UnixTimestamp = NewType("UnixTimestamp", int)
-TrophyTitleName = NewType("TrophyTitleName", str)
-TrophyTitles = Dict[CommunicationId, UnixTimestamp]
-
-
-class TrophyTitleInfo(NamedTuple):
-    communication_id: CommunicationId
-    trophy_title_name: TrophyTitleName
 
 
 def parse_timestamp(earned_date) -> UnixTimestamp:
@@ -104,6 +61,7 @@ def parse_play_duration(duration: Optional[str]) -> int:
         
     total_minutes = math.ceil(time.seconds / 60 + time.days * 24 * 60)
     return total_minutes
+
 
 def date_today():
     return datetime.today()
@@ -159,175 +117,55 @@ class PSNClient:
     async def async_get_own_user_info(self):
         def user_info_parser(response):
             logging.debug(f'user profile data: {response}')
-            return response["profile"]["accountId"], response["profile"]["onlineId"]
-
+            try:
+                return response["data"]["oracleUserProfileRetrieve"]["accountId"], \
+                       response["data"]["oracleUserProfileRetrieve"]["onlineId"]
+            except (KeyError, TypeError) as e:
+                raise UnknownBackendResponse(e)
         return await self.fetch_data(
             user_info_parser,
-            USER_INFO_URL.format(user_id="me")
+            USER_INFO_URL,
         )
 
     async def get_psplus_status(self) -> bool:
+
         def user_subscription_parser(response):
-            status = response["profile"]["plus"]
-            if status in [0, 1, True, False]:
-                return bool(status)
-            raise TypeError
+            try:
+                status = response["data"]["oracleUserProfileRetrieve"]['isPsPlusMember']
+                if status in [0, 1, True, False]:
+                    return bool(status)
+                raise TypeError
+            except (KeyError, TypeError) as e:
+                raise UnknownBackendResponse(e)
 
         return await self.fetch_data(
             user_subscription_parser,
-            USER_INFO_PSPLUS_URL.format(user_id="me")
+            USER_INFO_URL,
         )
 
-    async def async_get_owned_games(self):
-        def game_parser(title):
-            return Game(
-                game_id=title["titleId"],
-                game_title=title["name"],
-                dlcs=[],
-                license_info=LicenseInfo(LicenseType.SinglePurchase, None)
-            )
-
+    async def async_get_purchased_games(self):
         def games_parser(response):
-            return [
-                game_parser(title) for title in response["titles"]
-            ] if response else []
-
-        return await self.fetch_paginated_data(
-            games_parser,
-            GAME_LIST_URL.format(user_id="me"),
-            "totalResults"
-        )
-
-    async def async_get_game_trophy_title_info_map(self, game_ids: List[TitleId]) \
-            -> Dict[TitleId, List[TrophyTitleInfo]]:
-        def communication_ids_parser(response):
-            def get_trophy_title_infos(trophy_titles) -> List[TrophyTitleInfo]:
-                result = []
-                for trophy_title in trophy_titles:
-                    comm_id = trophy_title.get("npCommunicationId")
-                    trophy_title_name = trophy_title.get("trophyTitleName", "")
-                    if comm_id is not None:
-                        result.append(TrophyTitleInfo(
-                            CommunicationId(comm_id),
-                            TrophyTitleName(trophy_title_name)
-                        ))
-                return result
-
             try:
-                return {
-                    app["npTitleId"]: get_trophy_title_infos(app["trophyTitles"])
-                    for app in response["apps"]
-                } if response else {}
-            except (KeyError, IndexError):
-                return {}
+                games = response['data']['purchasedTitlesRetrieve']['games']
+                return [
+                    {"titleId": title["titleId"], "name": title["name"]} for title in games
+                ] if games else []
+            except (KeyError, TypeError) as e:
+                raise UnknownBackendResponse(e)
 
-        mapping = await self.fetch_data(
-            communication_ids_parser,
-            GAME_DETAILS_URL.format(game_id_list=",".join(game_ids))
-        )
-
-        return {
-            game_id: mapping.get(game_id, [])
-            for game_id in game_ids
-        }
-
-    async def get_trophy_titles(self) -> TrophyTitles:
-        def title_parser(title) -> Tuple[CommunicationId, UnixTimestamp]:
-            return (title["npCommunicationId"], parse_timestamp((title.get("fromUser") or {})["lastUpdateDate"]))
-
-        def titles_parser(response) -> List[Tuple[CommunicationId, UnixTimestamp]]:
-            return [
-                title_parser(title) for title in response.get("trophyTitles", [])
-            ] if response else []
-
-        result = await self.fetch_paginated_data(
-            parser=titles_parser,
-            url=TROPHY_TITLES_URL,
-            counter_name="totalResults"
-        )
-        return dict(result)
-
-    async def async_get_earned_trophies(self, communication_id) -> List[Achievement]:
-        def trophy_parser(trophy) -> Achievement:
-            return Achievement(
-                achievement_id="{}_{}".format(communication_id, trophy["trophyId"]),
-                achievement_name=str(trophy["trophyName"]),
-                unlock_time=parse_timestamp(trophy["fromUser"]["earnedDate"])
-            )
-
-        def trophies_parser(response) -> List[Achievement]:
-            return [
-                trophy_parser(trophy) for trophy in response.get("trophies", [])
-                if trophy.get("fromUser") and trophy["fromUser"].get("earned")
-            ] if response else []
-
-        return await self.fetch_data(trophies_parser, EARNED_TROPHIES_PAGE.format(
-            communication_id=communication_id,
-            trophy_group_id="all"))
-
-    async def async_get_friends(self):
-        def friend_info_parser(profile):
-
-            avatar_url = None
-            for avatar in profile["avatarUrls"]:
-                avatar_url = avatar["avatarUrl"]
-
-            return UserInfo(
-                user_id=str(profile["accountId"]),
-                user_name=str(profile["onlineId"]),
-                avatar_url=avatar_url,
-                profile_url=f"https://my.playstation.com/profile/{str(profile['onlineId'])}"
-            )
-
-        def friend_list_parser(response):
-            logging.info(response)
-            return [
-                friend_info_parser(profile) for profile in response.get("profiles", [])
-            ] if response else []
-
-        return await self.fetch_paginated_data(
-            friend_list_parser,
-            FRIENDS_URL.format(user_id="me", avatar_size_list=DEFAULT_AVATAR_SIZE),
-            "totalResults"
-        )
-
-    async def async_get_friends_presences(self):
-        def friend_info_parser(profile):
-
-            if profile["primaryOnlineStatus"] == "online":
-                presence_state = PresenceState.Online
-            else:
-                presence_state = PresenceState.Offline
-
-            game_title = game_id = None
-
-            if "presences" in profile:
-                for presence in profile["presences"]:
-                    try:
-                        if presence["onlineStatus"] == "online" and presence["platform"] == "PS4":
-                            game_title = presence["titleName"]
-                            game_id = presence["npTitleId"]
-                    except:
-                        continue
-
-            return {profile['accountId']: UserPresence(presence_state, game_id, game_title)}
-
-        def friends_with_presence_parser(response):
-            return [
-                friend_info_parser(profile) for profile in response.get("profiles", [])
-            ] if response else []
-
-        return await self.fetch_paginated_data(
-            friends_with_presence_parser,
-            FRIENDS_WITH_PRESENCE_URL.format(user_id="me"),
-            "totalResults"
-        )
+        return await self.fetch_paginated_data(games_parser, GAME_LIST_URL, "totalCount")
 
     async def get_subscription_games(self) -> List[SubscriptionGame]:
         return await self.fetch_data(PSNGamesParser().parse, PSN_PLUS_SUBSCRIPTIONS_URL, get_json=False, silent=True)
 
     async def async_get_played_games(self):
-        def get_games_parser(response):
-            return response.get('titles', [])
+        def games_parser(response):
+            try:
+                games = response['data']['gameLibraryTitlesRetrieve']['games']
+                return [
+                    {"titleId": title["titleId"], "name": title["name"]} for title in games
+                ] if games else []
+            except (KeyError, TypeError) as e:
+                raise UnknownBackendResponse(e)
 
-        return await self.fetch_paginated_data(get_games_parser, PLAYED_GAME_LIST_URL.format(user_id="me"), 'totalItemCount')
+        return await self.fetch_paginated_data(games_parser, PLAYED_GAME_LIST_URL, 'totalItemCount')

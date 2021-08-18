@@ -1,79 +1,73 @@
 import pytest
-from galaxy.api.errors import AuthenticationRequired, UnknownBackendResponse
-from galaxy.api.types import Game
+from galaxy.api.errors import UnknownBackendResponse
+from galaxy.unittest.mock import async_return_value
+
 from http_client import paginate_url
-from psn_client import DEFAULT_LIMIT, GAME_LIST_URL, TrophyTitleInfo
-from tests.async_mock import AsyncMock
-from tests.test_data import GAMES, BACKEND_GAME_TITLES, TITLE_TO_TROPHY_TITLE, DEFAULT_LICENSE
+from psn_client import DEFAULT_LIMIT, GAME_LIST_URL
+from tests.test_data import GAMES, BACKEND_GAME_TITLES, PARSED_GAME_TITLES
 
 
 @pytest.mark.asyncio
-async def test_not_authenticated(psn_plugin):
-    with pytest.raises(AuthenticationRequired):
-        await psn_plugin.get_owned_games()
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("backend_response, trophy_title_map, games", [
-    pytest.param({"titles": []}, {}, [], id='no games'),
-    pytest.param(
-        {"titles": [
-            {"titleId": "1", "name": None},  # no TrophyTitle
-            {"titleId": "2", "name": None},  # multiple TrophyTitles
-            {"titleId": "3", "name": None},  # single TrophyTitle
-        ]},
-        {
-            "1": [],
-            "2": [
-                TrophyTitleInfo("a", "NARUTO: Ultimate Ninja STORM"),
-                TrophyTitleInfo("b", "NARUTO SHIPPUDEN: Ultimate Ninja STORM 2"),
-            ],
-            "3": [
-                TrophyTitleInfo("c", "Cyberpunk 2077")
-            ]
-        },
-        [
-            Game("3", "Cyberpunk 2077", [], DEFAULT_LICENSE)
-        ],
-        id="logic for lacking `name`"
-    ),
-    pytest.param(BACKEND_GAME_TITLES, TITLE_TO_TROPHY_TITLE, GAMES, id='multiple game: real case scenario'),
+@pytest.mark.parametrize("backend_response, games", [
+    pytest.param({"data": {"purchasedTitlesRetrieve": {"games": []}}}, [], id='no games'),
+    pytest.param(BACKEND_GAME_TITLES, GAMES, id='multiple game: real case scenario'),
 ])
-async def test_get_owned_games(
-    http_get,
+async def test_get_owned_games__only_purchased_games(
     authenticated_plugin,
+    http_get,
     backend_response,
     games,
-    trophy_title_map,
     mocker
 ):
     http_get.return_value = backend_response
-    get_game_communication_id = mocker.patch(
-        "plugin.PSNPlugin.get_game_trophies_map",
-        new_callable=AsyncMock,
-        return_value=trophy_title_map
+    mocker.patch(
+        "psn_client.PSNClient.async_get_played_games",
+        return_value=async_return_value([])
     )
 
     assert games == await authenticated_plugin.get_owned_games()
-    http_get.assert_called_once_with(
-        paginate_url(GAME_LIST_URL.format(user_id="me"), DEFAULT_LIMIT))
-    get_game_communication_id.assert_called_once_with([game['titleId'] for game in backend_response['titles']])
+    http_get.assert_called_once_with(paginate_url(GAME_LIST_URL, DEFAULT_LIMIT))
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("parsed_purchased_games_titles,parsed_played_games_titles,games", [
+    pytest.param(PARSED_GAME_TITLES, [], GAMES, id='only purchased games'),
+    pytest.param([], PARSED_GAME_TITLES, GAMES, id='only played games'),
+    pytest.param(PARSED_GAME_TITLES, PARSED_GAME_TITLES, GAMES, id='played and purchased games'),
+    pytest.param([], [], [], id='no games'),
+])
+async def test_get_purchased_and_played_games(
+    authenticated_plugin,
+    games,
+    mocker,
+    parsed_purchased_games_titles,
+    parsed_played_games_titles,
+):
+    mocker.patch(
+        "psn_client.PSNClient.async_get_purchased_games",
+        return_value=async_return_value(parsed_purchased_games_titles)
+    )
+    mocker.patch(
+        "psn_client.PSNClient.async_get_played_games",
+        return_value=async_return_value(parsed_played_games_titles)
+    )
+    assert await authenticated_plugin.get_owned_games() == games
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("backend_response", [
-    {"titles": "bad_format"},
-    {"titles": {"titleId": "CUSA07917_00"}},
-    {"titles": {"name": "Tooth and Tail"}},
+    {"data": "bad_format"},
+    {"data": {"purchasedTitlesRetrieve": "CUSA07917_00"}},
+    {"data": {"purchasedTitlesRetrieve": {"games": "CUSA07917_00"}}},
+    {"data": {"name": "Tooth and Tail"}},
 ])
 async def test_bad_format(
-    http_get,
     authenticated_plugin,
+    http_get,
     backend_response,
 ):
     http_get.return_value = backend_response
     with pytest.raises(UnknownBackendResponse):
         await authenticated_plugin.get_owned_games()
 
-    http_get.assert_called_once_with(
-        paginate_url(GAME_LIST_URL.format(user_id="me"), DEFAULT_LIMIT))
+    http_get.assert_called_once_with(paginate_url(GAME_LIST_URL, DEFAULT_LIMIT))

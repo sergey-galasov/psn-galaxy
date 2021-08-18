@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 class PSNGamesParser:
 
-    _SUBSCRIBED_GAMES_PAGINATOR_CSS_CLASS = 'ems-sdk-strand-paginator'
+    _SUBSCRIBED_GAMES_PAGINATOR_CSS_CLASS = 'psw-strand-scroller'
     _SUBSCRIBED_GAMES_CSS_CLASS = 'ems-sdk-product-tile-link'
     _GAME_DATA_TAG = 'data-telemetry-meta'
 
@@ -31,7 +31,7 @@ class PSNGamesParser:
         """Scrapes all PS Plus Monthly games from https://store.playstation.com/subscriptions"""
 
         parsed_html = BeautifulSoup(response, 'html.parser')
-        paginator = parsed_html.find("div", class_=self._SUBSCRIBED_GAMES_PAGINATOR_CSS_CLASS)
+        paginator = parsed_html.find("ul", class_=self._SUBSCRIBED_GAMES_PAGINATOR_CSS_CLASS)
         if not paginator:
             raise NotFoundSubscriptionPaginator
         logger.debug("HTML response slice of %s tag: \n%s" % (self._SUBSCRIBED_GAMES_PAGINATOR_CSS_CLASS, paginator.decode_contents()))

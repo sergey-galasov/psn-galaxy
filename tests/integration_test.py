@@ -44,13 +44,9 @@ def test_integration():
     print(response)
     assert response["result"]["platform_name"] == "psn"
     assert set(response["result"]["features"]) == set([
-                'ImportAchievements',
                 'ImportOwnedGames',
-                'ImportUserPresence',
                 'ImportSubscriptions',
                 'ImportSubscriptionGames',
-                'ImportFriends',
-                'ImportGameTime'
             ])
     assert response["result"]["token"] == token
 

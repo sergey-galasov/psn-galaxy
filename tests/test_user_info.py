@@ -5,11 +5,12 @@ from galaxy.api.errors import UnknownBackendResponse
 @pytest.mark.asyncio
 @pytest.mark.parametrize("backend_response", [
     {},
-    {"profile": {}},
-    {"profile": None},
-    {"profile": "bad_format"},
-    {"profile": {"onlineId": "onlineId"}},
-    {"profile": {"accountId": "account_id"}},
+    {"data": {}},
+    {"data": None},
+    {"data": "bad_format"},
+    {"data": {"oracleUserProfileRetrieve": None}},
+    {"data": {"oracleUserProfileRetrieve": {}}},
+    {"data": {"oracleUserProfileRetrieve": "bad_format"}},
 ])
 async def test_bad_format(
     http_get,
@@ -37,11 +38,9 @@ async def test_async_get_own_user_info(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("backend_response", [
-    {},
-    {"profile": {}},
-    {"profile": None},
-    {"profile": "bad_format"},
-    {"profile": {"onlineId": "onlineId", "accountId": "account_id"}}
+    {"data": {"oracleUserProfileRetrieve": {"isPsPlusMember": {}}}},
+    {"data": {"oracleUserProfileRetrieve": {"isPsPlusMember": None}}},
+    {"data": {"oracleUserProfileRetrieve": {"isPsPlusMember": "bad_format"}}},
 ])
 async def test_psplus_bad_format(
     http_get,
@@ -58,8 +57,8 @@ async def test_psplus_bad_format(
 async def test_get_psplus_status(
     http_get,
     authenticated_psn_client,
-    user_profile_psplus
+    user_profile
 ):
-    http_get.return_value = user_profile_psplus
+    http_get.return_value = user_profile
     assert True == await authenticated_psn_client.get_psplus_status()
     http_get.assert_called_once()

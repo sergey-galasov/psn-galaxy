@@ -1,21 +1,12 @@
-import json
-import pytest
+from unittest.mock import MagicMock
 
-from aioresponses import aioresponses
-from galaxy.api.errors import AuthenticationRequired, InvalidCredentials, UnknownBackendResponse
+import pytest
 from galaxy.api.types import Authentication, NextStep
-from http import HTTPStatus
+from galaxy.unittest.mock import async_return_value
+
+from http_client import CookieJar
 from plugin import AUTH_PARAMS
 from psn_client import USER_INFO_URL
-from tests.async_mock import AsyncMock
-
-OWN_USER_INFO_URL = USER_INFO_URL.format(user_id="me")
-
-
-@pytest.fixture
-def backend_mock():
-    with aioresponses() as response:
-        yield response
 
 
 @pytest.fixture()
@@ -23,154 +14,58 @@ def auth_info(account_id, online_id):
     return Authentication(account_id, online_id)
 
 
-@pytest.fixture()
-def get_access_token(mocker):
-    return mocker.patch(
-        "plugin.AuthenticatedHttpClient.get_access_token",
-        new_callable=AsyncMock
-    )
-
-
 @pytest.mark.asyncio
 async def test_no_stored_credentials(
-    get_access_token,
     http_get,
     psn_plugin,
-    access_token,
-    stored_credentials,
     npsso,
     user_profile,
     auth_info,
-    mocker
 ):
     assert NextStep("web_session", AUTH_PARAMS) == await psn_plugin.authenticate()
-
-    get_access_token.return_value = access_token
     http_get.return_value = user_profile
-
-    assert auth_info == await psn_plugin.pass_login_credentials(
+    pass_login_credentials_result = await psn_plugin.pass_login_credentials(
         "whatever step",
         {},
         [{"name": "npsso", "value": npsso}]
     )
 
-    get_access_token.assert_called_once_with(npsso)
-    http_get.assert_called_once_with(OWN_USER_INFO_URL)
+    assert pass_login_credentials_result == auth_info
+    http_get.assert_called_with(USER_INFO_URL)
 
 
 @pytest.mark.asyncio
-async def test_stored_credentials(
-    get_access_token,
+async def test_with_stored_credentials(
     http_get,
     psn_plugin,
-    access_token,
     stored_credentials,
-    npsso,
     user_profile,
-    auth_info
+    auth_info,
 ):
-    get_access_token.return_value = access_token
     http_get.return_value = user_profile
+    auth_result = await psn_plugin.authenticate(stored_credentials)
 
-    assert auth_info == await psn_plugin.authenticate(stored_credentials)
-
-    get_access_token.assert_called_once_with(npsso)
-    http_get.assert_called_once_with(OWN_USER_INFO_URL)
-
-
-@pytest.mark.asyncio
-async def test_failed_to_get_access_token_with_npsso(
-    get_access_token,
-    psn_plugin,
-    stored_credentials,
-    npsso
-):
-    get_access_token.side_effect = UnknownBackendResponse
-    with pytest.raises(UnknownBackendResponse):
-        assert await psn_plugin.authenticate(stored_credentials)
-    get_access_token.assert_called_once_with(npsso)
+    assert auth_result == auth_info
+    http_get.assert_called_with(USER_INFO_URL)
 
 
 @pytest.mark.asyncio
-async def test_failed_to_get_user_info_during_auth(
-    get_access_token,
-    http_get,
-    access_token,
-    psn_plugin,
-    stored_credentials,
-    npsso
-):
-    get_access_token.return_value = access_token
-    http_get.side_effect = UnknownBackendResponse
-    with pytest.raises(UnknownBackendResponse):
-        assert await psn_plugin.authenticate(stored_credentials)
-    get_access_token.assert_called_once_with(npsso)
-
-
-@pytest.mark.asyncio
-async def test_invalid_authorization_response(
-    get_access_token,
-    psn_plugin,
-    stored_credentials,
-    npsso
-):
-    get_access_token.side_effect = InvalidCredentials
-    with pytest.raises(InvalidCredentials):
-        assert await psn_plugin.authenticate(stored_credentials)
-    get_access_token.assert_called_once_with(npsso)
-
-
-@pytest.mark.asyncio
-async def test_invalid_access_token(
-    get_access_token,
-    psn_plugin,
-    stored_credentials,
-    npsso
-):
-    get_access_token.return_value = None
-    with pytest.raises(UnknownBackendResponse):
-        assert await psn_plugin.authenticate(stored_credentials)
-    get_access_token.assert_called_once_with(npsso)
-
-
-@pytest.mark.asyncio
-async def test_refresh_access_token(
-    backend_mock,
-    authenticated_psn_client,
+async def test_credentials_to_store_after_refresh_cookies(
     user_profile,
-    npsso,
-    mocker
+    mocker,
+    create_plugin
 ):
-    backend_mock.get(OWN_USER_INFO_URL, status=HTTPStatus.UNAUTHORIZED)
-    backend_mock.get(OWN_USER_INFO_URL, status=HTTPStatus.OK, body=json.dumps(user_profile))
+    new_credentials_to_store = {'cookies': {'npsso': 'new_npsso'}}
+    cookie_jar = CookieJar()
+    refresh_cookies = mocker.patch("http_client.HttpClient.refresh_cookies", return_value=async_return_value(None))
+    mocker.patch("http_client.CookieJar", return_value=cookie_jar)
+    plugin = await create_plugin()
+    plugin.store_credentials = MagicMock()
 
-    get_access_token = mocker.patch(
-        "http_client.AuthenticatedHttpClient.get_access_token",
-        new_callable=AsyncMock,
-        return_value="new_access_token"
-    )
+    await plugin.authenticate({'cookies': {'npsso': 'old_npsso'}})
+    # Because of mocked `refresh_cookies` method, this test has to manually trigger `update_cookies`.
+    # In real code this method is triggered by `aiohttp.ClientSession._request` during preparing response.
+    cookie_jar.update_cookies(new_credentials_to_store['cookies'])
 
-    await authenticated_psn_client.async_get_own_user_info()
-
-    get_access_token.assert_called_once_with(npsso)
-
-
-@pytest.mark.asyncio
-async def test_failed_to_refresh_access_token(
-    backend_mock,
-    authenticated_psn_client,
-    npsso,
-    mocker
-):
-    get_access_token = mocker.patch(
-        "http_client.AuthenticatedHttpClient.get_access_token",
-        new_callable=AsyncMock,
-        side_effect=InvalidCredentials
-    )
-    backend_mock.get(OWN_USER_INFO_URL, status=HTTPStatus.UNAUTHORIZED)
-
-    with pytest.raises(AuthenticationRequired):
-        await authenticated_psn_client.async_get_own_user_info()
-
-    get_access_token.assert_called_once_with(npsso)
-
+    refresh_cookies.assert_called_once()
+    plugin.store_credentials.assert_called_with(new_credentials_to_store)

@@ -1,38 +1,30 @@
 import pytest
-from galaxy.api.types import Subscription
 from galaxy.api.errors import UnknownBackendResponse
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("backend_response, status", [
-    ({"profile": {"plus": 1}}, True),
-    ({"profile": {"plus": 0}}, False),
-])
-async def test_get_psplus_status(
-    http_get,
-    authenticated_plugin,
-    psplus_name,
-    backend_response,
-    status
-):
-    http_get.return_value = backend_response
-    assert [Subscription(psplus_name, end_time=None, owned=status)] == \
-        await authenticated_plugin.get_subscriptions()
-
-
-@pytest.mark.asyncio
 @pytest.mark.parametrize("backend_response", [
-    {},
-    {"profile": {}},
-    {"profile": "bad_format"},
-    {"profile": {"plus": "no"}},
-    {"profile": {"plus": {}}},
+    {"data": {"oracleUserProfileRetrieve": {"isPsPlusMember": {}}}},
+    {"data": {"oracleUserProfileRetrieve": {"isPsPlusMember": None}}},
+    {"data": {"oracleUserProfileRetrieve": {"isPsPlusMember": "bad_format"}}},
 ])
-async def test_bad_data(
+async def test_psplus_bad_format(
     http_get,
-    authenticated_plugin,
-    backend_response
+    backend_response,
+    authenticated_psn_client
 ):
     http_get.return_value = backend_response
     with pytest.raises(UnknownBackendResponse):
-        await authenticated_plugin.get_subscriptions()
+        await authenticated_psn_client.get_psplus_status()
+    http_get.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_get_psplus_status(
+    http_get,
+    authenticated_psn_client,
+    user_profile
+):
+    http_get.return_value = user_profile
+    assert True == await authenticated_psn_client.get_psplus_status()
+    http_get.assert_called_once()

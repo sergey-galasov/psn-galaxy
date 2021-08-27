@@ -1,6 +1,11 @@
-__version__ = "0.34"
+__version__ = "0.35"
 
 __changelog__ = {
+    "unreleased": """
+    """,
+    "0.35": """
+        - Fix pagination of fetched purchased games
+    """,
     "0.34": """
         - Add refreshing cookies by doing request to playstation login website
         - Fix logging by changing oauth which is the same as in web client for playstation.com

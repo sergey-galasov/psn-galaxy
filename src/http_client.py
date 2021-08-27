@@ -19,10 +19,6 @@ REFRESH_COOKIES_URL = OAUTH_LOGIN_URL
 DEFAULT_TIMEOUT = 30
 
 
-def paginate_url(url, limit, offset=0):
-    return url + "&limit={limit}&offset={offset}".format(limit=limit, offset=offset)
-
-
 class CookieJar(aiohttp.CookieJar):
     def __init__(self):
         super().__init__()

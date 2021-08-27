@@ -39,12 +39,14 @@ PARSED_GAME_TITLES = [
 ]
 
 BACKEND_GAME_TITLES = {
-    "start": 0,
-    "size": 11,
-    "totalResults": 11,
     "data": {
         "purchasedTitlesRetrieve": {
-            "games": PARSED_GAME_TITLES
+            "games": PARSED_GAME_TITLES,
+            "pageInfo": {
+                "start": 0,
+                "size": 11,
+                "totalCount": 11,
+            }
         }
     }
 }

@@ -1,15 +1,17 @@
+import copy
+
 import pytest
+from galaxy.api.consts import LicenseType
 from galaxy.api.errors import UnknownBackendResponse
+from galaxy.api.types import Game, LicenseInfo
 from galaxy.unittest.mock import async_return_value
 
-from http_client import paginate_url
-from psn_client import DEFAULT_LIMIT, GAME_LIST_URL
 from tests.test_data import GAMES, BACKEND_GAME_TITLES, PARSED_GAME_TITLES
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("backend_response, games", [
-    pytest.param({"data": {"purchasedTitlesRetrieve": {"games": []}}}, [], id='no games'),
+    pytest.param({"data": {"purchasedTitlesRetrieve": {"games": [], "pageInfo":{"totalResults": 0}}}}, [], id='no games'),
     pytest.param(BACKEND_GAME_TITLES, GAMES, id='multiple game: real case scenario'),
 ])
 async def test_get_owned_games__only_purchased_games(
@@ -26,7 +28,6 @@ async def test_get_owned_games__only_purchased_games(
     )
 
     assert games == await authenticated_plugin.get_owned_games()
-    http_get.assert_called_once_with(paginate_url(GAME_LIST_URL, DEFAULT_LIMIT))
 
 
 @pytest.mark.asyncio
@@ -70,4 +71,35 @@ async def test_bad_format(
     with pytest.raises(UnknownBackendResponse):
         await authenticated_plugin.get_owned_games()
 
-    http_get.assert_called_once_with(paginate_url(GAME_LIST_URL, DEFAULT_LIMIT))
+
+async def test_fetch_200_purchased_games(
+    authenticated_plugin,
+    mocker,
+    http_get
+):
+    mocker.patch(
+        "psn_client.PSNClient.async_get_played_games",
+        return_value=async_return_value([])
+    )
+    response_size = 100
+    purchased_games = [{"titleId": f"GAME_ID_{i}", "name": f"GAME_NAME_{i}"} for i in range(200)]
+    response = {
+        "data": {
+            "purchasedTitlesRetrieve": {
+                "games": [],
+                "pageInfo":  {
+                    "totalCount": len(purchased_games),
+                    "size": response_size,
+                }
+            }
+        }
+    }
+    r1, r2 = copy.deepcopy(response), copy.deepcopy(response)
+    r1["data"]["purchasedTitlesRetrieve"]["games"] = purchased_games[:response_size]
+    r2["data"]["purchasedTitlesRetrieve"]["games"] = purchased_games[response_size:]
+    http_get.side_effect = [r1, r2]
+    expected_games = [
+        Game(game["titleId"], game["name"], [], LicenseInfo(LicenseType.SinglePurchase, None)) for game in purchased_games
+    ]
+
+    assert await authenticated_plugin.get_owned_games() == expected_games

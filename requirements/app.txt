@@ -1,4 +1,3 @@
-aiohttp==3.5.4
-galaxy.plugin.api==0.31
-urllib3==1.24.1
+galaxy.plugin.api==0.64
 certifi==2019.3.9
+beautifulsoup4==4.9.3

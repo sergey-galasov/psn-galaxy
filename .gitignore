@@ -1,0 +1,9 @@
+build/
+output/
+plugin-psn.spec
+.pytest_cache
+__pycache__/
+.idea/
+.vscode/
+.mypy_cache/
+.venv
